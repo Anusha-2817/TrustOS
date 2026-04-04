@@ -1,0 +1,134 @@
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scanLine {
+  0% { top: 0%; }
+  100% { top: 100%; }
+}
+
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes pulseRingAmber {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+@keyframes pulseRingRed {
+  0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(225, 29, 72, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+}
+
+@keyframes dashOffset {
+  from { stroke-dashoffset: 251; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.animate-fade-in-delay-1 {
+  animation: fadeInUp 0.4s ease-out 0.1s both;
+}
+
+.animate-fade-in-delay-2 {
+  animation: fadeInUp 0.4s ease-out 0.2s both;
+}
+
+.animate-fade-in-delay-3 {
+  animation: fadeInUp 0.4s ease-out 0.3s both;
+}
+
+.animate-fade-in-delay-4 {
+  animation: fadeInUp 0.4s ease-out 0.4s both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.animate-count-up {
+  animation: countUp 0.5s ease-out;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+.animate-blink {
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+.scan-line::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), transparent);
+  animation: scanLine 2s linear infinite;
+}
+
+.pulse-ring-green {
+  animation: pulseRing 2s ease-out infinite;
+}
+
+.pulse-ring-amber {
+  animation: pulseRingAmber 2s ease-out infinite;
+}
+
+.pulse-ring-red {
+  animation: pulseRingRed 2s ease-out infinite;
+}
+
+/* Risk stroke animation */
+.risk-stroke {
+  animation: dashOffset 1.2s ease-out forwards;
+}
+
+/* Custom scrollbar for logs — deep harbor, teal thumb */
+.logs-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.logs-scroll::-webkit-scrollbar-track {
+  background: hsl(215 36% 10%);
+}
+.logs-scroll::-webkit-scrollbar-thumb {
+  background: hsl(173 35% 32%);
+  border-radius: 3px;
+}
+.logs-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(173 40% 42%);
+}

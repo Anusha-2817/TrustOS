@@ -1,0 +1,136 @@
+{
+  "project": "TrustOS Fintech App",
+  "theme": "Light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) - Clean Fintech / Stripe-like aesthetic",
+  "rationale": "For a B2B payment infrastructure app, trust and clarity are paramount. A clean, high-contrast light theme with soft functional accents mimics top-tier fintechs (like Stripe). It prioritizes data legibility and operational confidence without feeling clinical.",
+  "colors": {
+    "brand_primary": "#0F172A",
+    "brand_secondary": "#475569",
+    "background_app": "#F8FAFC",
+    "background_surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "text_primary": "#020617",
+    "text_secondary": "#64748B",
+    "risk_levels": {
+      "low": {
+        "label": "Low Risk",
+        "color": "#10B981",
+        "bg_soft": "#ECFDF5",
+        "text_dark": "#047857",
+        "border": "#A7F3D0"
+      },
+      "medium": {
+        "label": "Medium Risk",
+        "color": "#F59E0B",
+        "bg_soft": "#FFFBEB",
+        "text_dark": "#B45309",
+        "border": "#FDE68A"
+      },
+      "high": {
+        "label": "High Risk",
+        "color": "#E11D48",
+        "bg_soft": "#FFF1F2",
+        "text_dark": "#BE123C",
+        "border": "#FECDD3"
+      }
+    }
+  },
+  "typography": {
+    "headings_font": "Outfit",
+    "body_font": "Figtree",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight text-slate-900",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900",
+      "h3": "text-xl font-medium tracking-tight text-slate-800",
+      "body": "text-base font-normal leading-relaxed text-slate-600",
+      "labels": "text-xs font-semibold uppercase tracking-[0.2em] text-slate-500",
+      "numbers": "font-mono tracking-tight"
+    }
+  },
+  "spacing_and_layout": {
+    "grid_system": "The Control Room Protocol: Dense, structured grids for dashboards. grid-cols-1 md:grid-cols-3 or 4. gap-6.",
+    "surface_strategy": "Clay & Crisp. Use white surfaces (bg-white) on a soft off-white background (bg-slate-50). Elements should have a soft ambient shadow (shadow-sm) combined with a crisp 1px border (border-black/5 or border-slate-200) to separate them. No muddy gray shadows.",
+    "padding": {
+      "card_internal": "p-6 sm:p-8",
+      "section_vertical": "py-12 sm:py-16"
+    },
+    "radii": {
+      "cards": "rounded-2xl",
+      "buttons": "rounded-lg",
+      "inputs": "rounded-lg",
+      "badges": "rounded-full"
+    }
+  },
+  "interactions_and_motion": {
+    "hover_states": "Interactive cards should lift slightly (-translate-y-[2px]) and increase shadow to shadow-md. Transition durations should be fast (duration-200 ease-out).",
+    "focus_states": "Strictly use ring-2 ring-slate-900 ring-offset-2 for keyboard accessibility. No default browser outlines.",
+    "page_transitions": "Staggered fade-up animations (Framer Motion). Elements enter by moving from y: 10 to y: 0, opacity 0 to 1.",
+    "micro_interactions": "Risk score calculators should use circular progress gauges that animate from 0 to the final value."
+  },
+  "components_instructions": {
+    "buttons": "Primary buttons: bg-slate-900 text-white hover:bg-slate-800. Secondary buttons: bg-white text-slate-700 border border-slate-200 hover:bg-slate-50. Ghost buttons for tertiary actions.",
+    "badges": "Risk badges must use the risk_levels soft background and dark text colors. px-3 py-1 text-xs rounded-full flex items-center gap-1.5 (include a 6px colored dot).",
+    "cards": "Use Shadcn Card component but override border to border-slate-200 and shadow to shadow-sm. Use generous padding.",
+    "timeline": "For delivery tracking, use a vertical or horizontal layout. Active steps have brand_primary circles, inactive have border-slate-300. Use a solid 2px line connecting them. For High-Risk flows, show a 'Locked' icon in the timeline.",
+    "navigation": "Minimal top bar. White background, border-b border-slate-200, crisp typography. Stick to the top with z-50.",
+    "data_display": "For the Journey Summary Table, left-align text. Use subtle bg-slate-50 for table headers."
+  },
+  "media": {
+    "logos": {
+      "trustos_brand": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/7323f92d-b51d-4fb7-ab37-aadea4223f52/images/7c9a4271a3469933205920379142901afe5972f77375f0518dde5a56d5cab275.png",
+        "description": "Abstract geometric 3D logo for TrustOS"
+      }
+    },
+    "hero_graphics": {
+      "payment_concept": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/7323f92d-b51d-4fb7-ab37-aadea4223f52/images/5a1084536635b133f70e06a04af0976198fa3d659f7941844f26428c4254d704.png",
+        "description": "Modern minimalist floating credit card, useful for the Payment Screen hero or side panel."
+      }
+    },
+    "avatars": {
+      "buyer": {
+        "url": "https://images.pexels.com/photos/14585727/pexels-photo-14585727.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Professional portrait for the buyer trust badge."
+      },
+      "seller": {
+        "url": "https://images.unsplash.com/photo-1680104073282-8462cdf70b6a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMHBob3RvZ3JhcGh5JTIwaGVhZHNob3R8ZW58MHx8fHwxNzc1MjIzMTc0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional portrait for the seller trust badge."
+      }
+    },
+    "products": [
+      {
+        "id": "prod_low",
+        "risk_level": "Low",
+        "name": "Cloud API Subscription",
+        "price": "$49.00/mo",
+        "url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwZGlnaXRhbCUyMHNhYXMlMjBkYXNoYm9hcmQlMjBkZXNpZ258ZW58MHx8fHwxNzc1MjIzMTk1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Digital goods flow (Silent timer)"
+      },
+      {
+        "id": "prod_med",
+        "risk_level": "Medium",
+        "name": "Limited Edition Sneakers",
+        "price": "$299.00",
+        "url": "https://images.unsplash.com/photo-1544441893-aa0f3f67b48a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzV8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwd2hpdGUlMjBzbmVha2VyJTIwcHJvZHVjdCUyMHBob3RvZ3JhcGh5fGVufDB8fHx8MTc3NTIyMzE5NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Standard physical goods flow (Confirmation button)"
+      },
+      {
+        "id": "prod_high",
+        "risk_level": "High",
+        "name": "MacBook Pro M3 Max",
+        "price": "$3,499.00",
+        "url": "https://images.unsplash.com/photo-1759588071814-1ba7c5761af4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxtYWNib29rJTIwcHJvJTIwbW9kZXJuJTIwcHJvZHVjdCUyMHBob3RvZ3JhcGh5fGVufDB8fHx8MTc3NTIyMzE5NHww&ixlib=rb-4.1.0&q=85",
+        "description": "High-value physical goods flow (OTP + video + checklist)"
+      }
+    ]
+  },
+  "testing_rules": "All interactive elements (buttons, form inputs, tabs, risk cards) and key informational displays MUST include a descriptive data-testid attribute in kebab-case (e.g., data-testid='buyer-trust-badge', data-testid='place-order-button').",
+  "flow_specific_instructions": {
+    "1_order_screen": "Feature a prominent Product Card alongside Buyer & Seller trust badges. Use the avatars provided. Incorporate a dynamic Risk Score display (e.g., a sleek gauge or colored progress bar depending on the selected product).",
+    "2_payment_screen": "Design a clean Payment Panel UI. Map the payment status based on risk level. Use subtle success/warning/error colors on the status badge: Low -> Captured (Green), Medium -> Authorized (Yellow), High -> Held (Red).",
+    "3_delivery_tracking": "Implement a visually clear timeline mapping out: Order placed -> Shipped -> Delivered. Use lucide-react icons for each step.",
+    "4_post_delivery": "Adapt UI based on risk. Low: display a subtle, automated silent timer. Medium: show a clear 'Confirm Delivery' button. High: render a multi-step verification form requiring an OTP input, an icon for video verification, and a checklist.",
+    "5_final_decision": "Display the final payment resolution ('Payment Released' or 'Refunded') prominently using high-contrast typography. Accompany it with a data-dense, well-spaced Journey Summary Table to review the transaction history."
+  }
+}
