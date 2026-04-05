@@ -92,6 +92,8 @@ code {
         border-width: 1px;
         border-style: solid;
         border-color: hsl(214 26% 88% / 0.92);
+        border-radius: 0.75rem; /* already matches your design */
+
         background: linear-gradient(
             148deg,
             hsl(0 0% 100%) 0%,
@@ -99,11 +101,24 @@ code {
             hsl(195 42% 97.5%) 68%,
             hsl(168 28% 96% / 0.92) 100%
         );
+
         box-shadow:
             0 1px 2px rgb(15 23 42 / 0.035),
             0 0 0 1px rgb(45 212 191 / 0.06),
             0 10px 32px -12px rgb(13 148 136 / 0.09),
             0 24px 48px -28px rgb(15 23 42 / 0.04);
+
+        transition: 
+            transform 0.25s ease,
+            box-shadow 0.25s ease,
+            border-radius 0.25s ease;
+    }
+    .trust-card:hover {
+        transform: scale(1.05);
+        box-shadow:
+            0 6px 20px rgb(15 23 42 / 0.08),
+            0 0 0 1px rgb(45 212 191 / 0.1),
+            0 18px 40px -10px rgb(13 148 136 / 0.18);
     }
 
     /* Accent panels (simulator, highlights): teal mist band */

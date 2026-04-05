@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 
 
 # ─── Input Models ────────────────────────────────────────────────────────────
@@ -165,3 +165,47 @@ class EvaluateProductRequest(BaseModel):
                 "new_device": False,
             }
         }
+
+
+class ProductEvaluateRiskBreakdown(BaseModel):
+    """Component risks before clamp; final_risk = clamp(trust_risk + value_risk + context_risk)."""
+
+    trust_risk: float = Field(..., description="100 − 0.4×BT − 0.4×ST (same as base_risk)")
+    value_risk: float = Field(..., description="INR price band add-on (5 / 15 / 25)")
+    context_risk: float = Field(
+        ...,
+        description="New buyer–seller pair (+20) + new device (+10)",
+    )
+
+
+class EvaluateProductResponse(EvaluateProductRequest):
+    """POST /evaluate-product — full structured evaluation."""
+
+    buyer_trust: float = Field(..., description="Buyer Trust Score (BT), clamped 0–100")
+    seller_trust: float = Field(..., description="Seller Trust Score (ST), clamped 0–100")
+    base_risk: float = Field(..., description="Trust-only risk: 100 − 0.4×BT − 0.4×ST")
+    risk_breakdown: ProductEvaluateRiskBreakdown
+    final_risk: float = Field(
+        ...,
+        description="Clamp 0–100: pre-behavior risk + behavior_risk (LLM-derived)",
+    )
+    decision: Literal["LOW", "MEDIUM", "HIGH"] = Field(
+        ...,
+        description="LOW ≤30, MEDIUM ≤60, HIGH otherwise (same bands as RiskEngine)",
+    )
+    signals: list[str] = Field(
+        ...,
+        description="LLM risk/trust signal labels (empty on fallback)",
+    )
+    risk_modifier: float = Field(
+        ...,
+        description="LLM risk_modifier from JSON (0 on error fallback)",
+    )
+    confidence: float = Field(
+        ...,
+        description="LLM confidence 0–1 (0.5 on error fallback)",
+    )
+    behavior_risk: float = Field(
+        ...,
+        description="len(signals)×7 + confidence×10",
+    )

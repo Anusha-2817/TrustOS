@@ -123,6 +123,38 @@ export function mapFullEvaluationToRiskData(full) {
   };
 }
 
+/** Demo panel: fixed origin as requested (POST /evaluate-product). */
+const EVALUATE_PRODUCT_DEMO_URL = "http://127.0.0.1:8000/evaluate-product";
+
+/**
+ * @param {object} body - EvaluateProductRequest JSON
+ * @returns {Promise<object>}
+ */
+export async function postEvaluateProduct(body) {
+  const res = await fetch(EVALUATE_PRODUCT_DEMO_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+  if (!res.ok) {
+    const msg = detailToMessage(data?.detail) || res.statusText || `HTTP ${res.status}`;
+    throw new ApiError(msg, res.status, data);
+  }
+  return data;
+}
+
 export async function checkHealth() {
   return apiFetch("/health");
 }

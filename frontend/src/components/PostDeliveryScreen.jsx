@@ -76,7 +76,7 @@ function QRScan({ productId, onVerified, addLog }) {
   );
 }
 
-const LOW_SILENT_SHORT_SEC = 32; // demo stand-in for 30 min – 1 hr
+const LOW_SILENT_SHORT_SEC = 5; // demo stand-in for 30 min – 1 hr
 const LOW_SILENT_LONG_SEC = 40; // demo stand-in for 2 – 8 hr
 const MEDIUM_WINDOW_SEC = 72; // demo stand-in for 8 hr; notify 1 hr before end → at 63s elapsed (7/8)
 
@@ -85,6 +85,11 @@ function LowRiskVerification({ onComplete, addLog }) {
   const [phase, setPhase] = useState('short'); // short | long | done
   const [seconds, setSeconds] = useState(LOW_SILENT_SHORT_SEC);
   const [longSeconds, setLongSeconds] = useState(LOW_SILENT_LONG_SEC);
+
+  const fastForwardSilentSettlement = () => {
+    addLog('LOW: Silent settlement window fast-forwarded (demo).', 'low');
+    setLongSeconds(0);
+  };
 
   useEffect(() => {
     if (phase === 'short') {
@@ -116,7 +121,7 @@ function LowRiskVerification({ onComplete, addLog }) {
       {phase === 'short' && (
         <div className="trust-card rounded-2xl border-emerald-200 dark:border-emerald-800/45 dark:bg-slate-800/80 p-6 text-center">
           <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-2">
-            Silent window — 30 min to 1 hr (demo timer)
+            Silent window — 5s demo (≈30 min–1 hr in production)
           </p>
           <div className="relative w-28 h-28 mx-auto mb-4">
             <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
@@ -169,7 +174,19 @@ function LowRiskVerification({ onComplete, addLog }) {
               style={{ width: `${longPct}%` }}
             />
           </div>
-          <p className="text-center text-sm font-mono text-slate-700 dark:text-slate-300">{longSeconds}s left (demo)</p>
+          <p className="text-center text-sm font-mono text-slate-700 dark:text-slate-300 mb-4">{longSeconds}s left (demo)</p>
+          <button
+            type="button"
+            onClick={fastForwardSilentSettlement}
+            data-testid="low-risk-silent-settlement-fast-forward-btn"
+            className="w-full flex items-center justify-center gap-2.5 py-3 border-2 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 bg-emerald-50/90 dark:bg-emerald-950/45 rounded-xl font-bold text-sm hover:bg-emerald-100/90 dark:hover:bg-emerald-950/65 active:scale-[0.99] transition-all duration-200 group"
+          >
+            <FastForward className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            Fast-forward silent settlement
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+              DEMO
+            </span>
+          </button>
         </div>
       )}
 

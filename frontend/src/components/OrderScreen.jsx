@@ -21,6 +21,7 @@ import {
   ApiError,
 } from "@/services/api";
 import RiskSimulatorPanel from "@/components/RiskSimulatorPanel";
+import DemoTransactionCases from "@/components/DemoTransactionCases";
 
 const riskBadgeStyle = (level) =>
   ({
@@ -28,6 +29,64 @@ const riskBadgeStyle = (level) =>
     medium: "bg-amber-50 text-amber-700 border border-amber-200",
     high: "bg-rose-50 text-rose-700 border border-rose-200",
   })[level];
+
+/** Product grid cards: border + glow keyed by expected risk (LOW green, MEDIUM yellow, HIGH red). */
+const PRODUCT_CARD_RISK = {
+  low: {
+    border: "border-emerald-300/70 dark:border-emerald-500/40",
+    borderHover: "hover:border-emerald-400 dark:hover:border-emerald-400/55",
+    shadow:
+      "shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_4px_6px_-1px_rgb(15_23_42/0.05),0_14px_36px_-14px_rgba(16,185,129,0.18)]",
+    darkShadow:
+      "dark:shadow-[0_0_0_1px_rgba(52,211,153,0.14),0_8px_28px_-10px_rgb(0_0_0/0.18),0_0_44px_-14px_rgba(16,185,129,0.14)]",
+    shadowHover:
+      "hover:shadow-[0_0_0_1px_rgba(16,185,129,0.28),0_18px_44px_-12px_rgba(16,185,129,0.24)]",
+    darkShadowHover:
+      "dark:hover:shadow-[0_0_0_1px_rgba(52,211,153,0.22),0_0_52px_-12px_rgba(16,185,129,0.16),0_12px_36px_-10px_rgb(0_0_0/0.2)]",
+    ring: "ring-emerald-500/60 dark:ring-emerald-400/50",
+    selectedShadow: "shadow-[0_0_36px_-8px_rgba(16,185,129,0.4)]",
+    imgRing: "ring-emerald-400/22 dark:ring-emerald-500/28",
+    imgTint: "to-emerald-400/8 dark:to-emerald-400/12",
+    footerTint: "to-emerald-50/35 dark:to-emerald-950/28",
+    cardBg: "to-emerald-50/45 dark:to-emerald-950/22",
+  },
+  medium: {
+    border: "border-amber-300/75 dark:border-amber-500/42",
+    borderHover: "hover:border-amber-400 dark:hover:border-amber-400/55",
+    shadow:
+      "shadow-[0_0_0_1px_rgba(245,158,11,0.2),0_4px_6px_-1px_rgb(15_23_42/0.05),0_14px_36px_-14px_rgba(245,158,11,0.18)]",
+    darkShadow:
+      "dark:shadow-[0_0_0_1px_rgba(251,191,36,0.16),0_8px_28px_-10px_rgb(0_0_0/0.18),0_0_44px_-14px_rgba(245,158,11,0.14)]",
+    shadowHover:
+      "hover:shadow-[0_0_0_1px_rgba(245,158,11,0.32),0_18px_44px_-12px_rgba(245,158,11,0.22)]",
+    darkShadowHover:
+      "dark:hover:shadow-[0_0_0_1px_rgba(251,191,36,0.24),0_0_52px_-12px_rgba(245,158,11,0.18),0_12px_36px_-10px_rgb(0_0_0/0.2)]",
+    ring: "ring-amber-500/60 dark:ring-amber-400/50",
+    selectedShadow: "shadow-[0_0_36px_-8px_rgba(245,158,11,0.38)]",
+    imgRing: "ring-amber-400/22 dark:ring-amber-500/28",
+    imgTint: "to-amber-400/8 dark:to-amber-400/12",
+    footerTint: "to-amber-50/40 dark:to-amber-950/26",
+    cardBg: "to-amber-50/50 dark:to-amber-950/24",
+  },
+  high: {
+    border: "border-rose-300/75 dark:border-rose-500/42",
+    borderHover: "hover:border-rose-400 dark:hover:border-rose-400/55",
+    shadow:
+      "shadow-[0_0_0_1px_rgba(225,29,72,0.18),0_4px_6px_-1px_rgb(15_23_42/0.05),0_14px_36px_-14px_rgba(225,29,72,0.16)]",
+    darkShadow:
+      "dark:shadow-[0_0_0_1px_rgba(251,113,133,0.14),0_8px_28px_-10px_rgb(0_0_0/0.18),0_0_44px_-14px_rgba(225,29,72,0.14)]",
+    shadowHover:
+      "hover:shadow-[0_0_0_1px_rgba(225,29,72,0.28),0_18px_44px_-12px_rgba(225,29,72,0.22)]",
+    darkShadowHover:
+      "dark:hover:shadow-[0_0_0_1px_rgba(251,113,133,0.22),0_0_52px_-12px_rgba(225,29,72,0.16),0_12px_36px_-10px_rgb(0_0_0/0.2)]",
+    ring: "ring-rose-500/60 dark:ring-rose-400/50",
+    selectedShadow: "shadow-[0_0_36px_-8px_rgba(225,29,72,0.38)]",
+    imgRing: "ring-rose-400/22 dark:ring-rose-500/28",
+    imgTint: "to-rose-400/8 dark:to-rose-400/12",
+    footerTint: "to-rose-50/40 dark:to-rose-950/28",
+    cardBg: "to-rose-50/45 dark:to-rose-950/24",
+  },
+};
 
 function RiskGauge({ score, level, animated }) {
   const cfg = RISK_CONFIG[level];
@@ -174,28 +233,27 @@ function TrustBadge({ person, type, score, orders, apiLevelLabel, loading }) {
 
 function ProductCard({ product, onSelect, selected }) {
   const cfg = RISK_CONFIG[product.expectedRisk];
+  const pc = PRODUCT_CARD_RISK[product.expectedRisk] || PRODUCT_CARD_RISK.medium;
   return (
     <button
       onClick={() => onSelect(product)}
       data-testid={`product-card-${product.id}`}
-      className={`group w-full text-left rounded-2xl overflow-hidden border transition-all duration-300
-        bg-gradient-to-br from-white via-slate-50/90 to-teal-50/50
-        dark:from-slate-600/35 dark:via-slate-700/65 dark:to-cyan-950/30
-        border-teal-200/25 dark:border-teal-400/18
-        shadow-[0_0_0_1px_rgb(45_212_191/0.07),0_4px_6px_-1px_rgb(15_23_42/0.05),0_14px_36px_-14px_rgb(13_148_136/0.18)]
-        dark:shadow-[0_0_0_1px_rgb(94_234_212/0.1),0_8px_28px_-10px_rgb(0_0_0/0.18),0_0_44px_-14px_rgb(45_212_191/0.12)]
-        hover:shadow-[0_0_0_1px_rgb(45_212_191/0.16),0_18px_44px_-12px_rgb(13_148_136/0.25)]
-        dark:hover:shadow-[0_0_0_1px_rgb(94_234_212/0.18),0_0_52px_-12px_rgb(45_212_191/0.14),0_12px_36px_-10px_rgb(0_0_0/0.2)]
+      className={`group w-full text-left rounded-2xl overflow-hidden border transition-all duration-300 ease-out
+        bg-gradient-to-br from-white via-slate-50/90 ${pc.cardBg}
+        dark:from-slate-600/35 dark:via-slate-700/65
+        ${pc.border} ${pc.borderHover}
+        ${pc.shadow} ${pc.darkShadow}
+        ${pc.shadowHover} ${pc.darkShadowHover}
         hover:-translate-y-1
         ${
           selected
-            ? "ring-2 ring-teal-500/55 dark:ring-teal-400/45 ring-offset-2 ring-offset-[hsl(210_42%_97%)] dark:ring-offset-[hsl(220_18%_19%)] shadow-[0_0_36px_-8px_rgb(45_212_191/0.35)]"
+            ? `ring-2 ${pc.ring} ring-offset-2 ring-offset-[hsl(210_42%_97%)] dark:ring-offset-[hsl(220_18%_19%)] ${pc.selectedShadow}`
             : ""
         }`}
     >
-      <div className="h-36 overflow-hidden relative ring-1 ring-inset ring-teal-400/15 dark:ring-teal-400/20">
+      <div className={`h-36 overflow-hidden relative ring-1 ring-inset ${pc.imgRing}`}>
         <div
-          className="absolute inset-0 z-[1] pointer-events-none bg-gradient-to-t from-slate-900/10 via-transparent to-teal-400/5 dark:from-slate-950/50 dark:to-teal-400/10"
+          className={`absolute inset-0 z-[1] pointer-events-none bg-gradient-to-t from-slate-900/10 via-transparent ${pc.imgTint} dark:from-slate-950/50`}
           aria-hidden
         />
         <img
@@ -204,7 +262,9 @@ function ProductCard({ product, onSelect, selected }) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       </div>
-      <div className="p-4 bg-gradient-to-b from-white/90 via-white/70 to-teal-50/25 dark:from-slate-800/40 dark:via-slate-800/25 dark:to-cyan-950/20 backdrop-blur-[1px]">
+      <div
+        className={`p-4 bg-gradient-to-b from-white/90 via-white/70 ${pc.footerTint} dark:from-slate-800/40 dark:via-slate-800/25 backdrop-blur-[1px]`}
+      >
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">
             {product.name}
@@ -323,6 +383,8 @@ export default function OrderScreen({ onOrderPlaced, addLog }) {
           Select a product to simulate a TrustOS-controlled payment flow.
         </p>
       </div>
+
+      <DemoTransactionCases />
 
       {!selected ? (
         /* Product Selection Grid */

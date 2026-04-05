@@ -1,19 +1,28 @@
+import os
+import sys
+from typing import Optional
+
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
-import uvicorn
-import sys
-import os
+from openai import OpenAI
+
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 sys.path.insert(0, os.path.dirname(__file__))
+
 from services.trust_engine import TrustEngine
 from services.risk_engine import RiskEngine
 from services.decision_engine import DecisionEngine
+from services.payment_engine import call_llm
 from models import (
     BuyerProfile, SellerProfile, TransactionRequest,
     TrustScoreResponse, RiskScoreResponse, DecisionModel,
     FullEvaluationResponse, SimulatorEvaluateRequest,
     EvaluateProductRequest,
+    EvaluateProductResponse,
+    ProductEvaluateRiskBreakdown,
 )
 
 app = FastAPI(
@@ -33,6 +42,19 @@ app.add_middleware(
 trust_engine = TrustEngine()
 risk_engine = RiskEngine()
 decision_engine = DecisionEngine()
+
+
+def _clamp_trust(score: float) -> float:
+    return max(0.0, min(100.0, score))
+
+
+def _product_eval_scores(body: EvaluateProductRequest) -> tuple[float, float, float]:
+    bo, bd = body.buyer_orders, body.buyer_disputes
+    so, sc = body.seller_orders, body.seller_complaints
+    bt = _clamp_trust(40 + (2 * bo) - (15 * (bd / bo if bo > 0 else 0)))
+    st = _clamp_trust(50 + (1.5 * so) - (20 * (sc / so if so > 0 else 0)))
+    base_risk = 100 - (0.4 * bt) - (0.4 * st)
+    return bt, st, base_risk
 
 
 # ─── Trust Engine Routes ────────────────────────────────────────────────────
@@ -65,12 +87,54 @@ def compute_seller_trust(profile: SellerProfile):
 
 @app.post(
     "/evaluate-product",
-    response_model=EvaluateProductRequest,
+    response_model=EvaluateProductResponse,
     tags=["Risk Engine"],
 )
 def evaluate_product(body: EvaluateProductRequest):
-    """Echo validated product evaluation input (minimal contract)."""
-    return body
+    """Product context: trust scores, risk breakdown, clamped final risk, LOW|MEDIUM|HIGH."""
+    bt, st, base_risk = _product_eval_scores(body)
+    value_risk = risk_engine.value_risk_for_amount(body.product_price)
+    context_risk = (20.0 if body.is_new_interaction else 0.0) + (
+        10.0 if body.new_device else 0.0
+    )
+    trust_risk = base_risk
+    final_raw = trust_risk + value_risk + context_risk
+    existing_final_risk = round(max(0.0, min(100.0, final_raw)), 2)
+
+    data = {
+        "product_name": body.product_name,
+        "review_summary": body.review_summary,
+        "seller_complaints": body.seller_complaints,
+        "buyer_disputes": body.buyer_disputes,
+    }
+    llm_output = call_llm(data)
+    signals = llm_output["signals"]
+    confidence = float(llm_output["confidence"])
+    risk_modifier = float(llm_output["risk_modifier"])
+    behavior_risk = len(signals) * 7 + confidence * 10
+    final_risk = round(
+        max(0.0, min(100.0, existing_final_risk + behavior_risk)),
+        2,
+    )
+    decision = risk_engine.classify(final_risk)
+
+    return EvaluateProductResponse(
+        **body.model_dump(),
+        buyer_trust=round(bt, 2),
+        seller_trust=round(st, 2),
+        base_risk=round(base_risk, 2),
+        risk_breakdown=ProductEvaluateRiskBreakdown(
+            trust_risk=round(trust_risk, 2),
+            value_risk=float(value_risk),
+            context_risk=context_risk,
+        ),
+        final_risk=final_risk,
+        decision=decision,
+        signals=signals,
+        risk_modifier=risk_modifier,
+        confidence=confidence,
+        behavior_risk=round(behavior_risk, 2),
+    )
 
 
 @app.post("/risk/score", response_model=RiskScoreResponse, tags=["Risk Engine"])
@@ -465,3 +529,4 @@ def settle_contract(body: SettleBody = SettleBody()):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
