@@ -3,7 +3,8 @@
 TrustOS is not a fraud-detection add-on — it's a **dynamic transaction control system** that decides how trust affects the movement of money, from payment authorization through delivery verification to final settlement.
 
 ![App Screenshot](assets/homepage.png)
-![App Screenshot](assets/settlement.png)
+![App Screenshot](assets/settelment.png)
+
 ## Core Idea
 
 Every transaction is scored for risk using buyer trust, seller trust, and real-time transaction signals. That risk score determines — dynamically — how payment, delivery, and verification are handled. High-trust transactions move money instantly with zero friction. Low-trust transactions are held, verified, and only released once trust is proven.
