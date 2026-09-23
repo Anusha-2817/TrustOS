@@ -176,7 +176,7 @@ class Product(_Snapshot):
     list_price: Optional[float] = Field(None, gt=0, le=10_000_000, description="Original/MRP price. Basis for discount_ratio; implausible discounts are a bait-price marker.")
     category_avg_price: Optional[float] = Field(
         None, gt=0,
-        description="Mean price of the category (same currency), computed over the seed dataset at collection time. Denominator for price_to_category_ratio.",
+        description="Median price of the category (same currency), computed over the seed dataset at collection time. Denominator for price_to_category_ratio.",
     )
 
     # Reputation
@@ -192,7 +192,7 @@ class Product(_Snapshot):
         None,
         description=(
             "Origin of listed_at: 'date_first_available' = the platform's real listing date; "
-            "'first_review_approx' = earliest review date used as a stand-in (an upper bound on listing age, "
+            "'first_review_approx' = earliest review date used as a stand-in (a lower bound on listing age, since a first review can only come on or after the real listing date; "
             "biased for products that were slow to get a first review). None iff listed_at is None. "
             "Lets downstream code tell a real date from a guess."
         ),
