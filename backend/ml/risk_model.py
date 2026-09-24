@@ -37,6 +37,7 @@ if str(BACKEND_DIR) not in sys.path:  # same convention as main.py / scripts/bui
     sys.path.insert(0, str(BACKEND_DIR))
 
 from models.trust_schema import Product  # noqa: E402
+from services.risk_engine import RiskEngine  # noqa: E402
 
 SEED_PRODUCTS_PATH = BACKEND_DIR / "data" / "seed_products.json"
 
@@ -75,19 +76,13 @@ _TRANSFORMS: Dict[str, Callable[[np.ndarray], np.ndarray]] = {
 # Unsupervised => no base rate to calibrate to; these are an explicit assumption:
 # flag the top 5% for strict handling, the next 15% for moderate friction.
 TIER_PERCENTILES = (80.0, 95.0)
-# Scale anchors = the README / risk_engine cutoffs: score 30 <-> P80, 60 <-> P95.
-TIER_SCORES = (30.0, 60.0)
+# Scale anchors = the risk_engine cutoffs: score 30 <-> P80, 60 <-> P95.
+TIER_SCORES = (RiskEngine.LOW_MAX, RiskEngine.MEDIUM_MAX)
 
 MIN_CONTRIBUTION = 0.005  # ignore attribution noise below this (anomaly-score units, ~0.3-0.8 range)
 
-
-def risk_level_for_score(score: float) -> str:
-    """Mirror of ``services/risk_engine`` classification (<=30 LOW, <=60 MEDIUM, else HIGH)."""
-    if score <= 30:
-        return "LOW"
-    if score <= 60:
-        return "MEDIUM"
-    return "HIGH"
+# Tiers come from the engine itself (<=30 LOW, <=60 MEDIUM, else HIGH), not a copy of its cutoffs.
+risk_level_for_score = RiskEngine.classify
 
 
 # ─── Step 1: category_avg_price backfill ─────────────────────────────────────
@@ -280,7 +275,9 @@ class RiskModel:
                 "share": round(float(contrib[j]) / pos_total, 3),
             })
         score = float(self.calibrate(s[0]))
-        return RiskAssessment(round(score, 1), risk_level_for_score(score), top, float(s[0]), imputed)
+        # Tier from the *displayed* (rounded) score, so a shown score and its level never disagree
+        # (unrounded 30.0128 used to show as "30.0 MEDIUM" although 30.0 is LOW).
+        return RiskAssessment(round(score, 1), risk_level_for_score(round(score, 1)), top, float(s[0]), imputed)
 
 
 def train(
@@ -360,7 +357,7 @@ def main() -> None:
     a = model.anchors
     print(f"anomaly score (higher = more odd): min={a[0]:.4f}  P{TIER_PERCENTILES[0]:.0f}={a[1]:.4f}  P{TIER_PERCENTILES[1]:.0f}={a[2]:.4f}  max={a[3]:.4f}")
     scores = model.calibrate(model.train_anomaly)
-    levels = np.array([risk_level_for_score(s) for s in scores])
+    levels = np.array([risk_level_for_score(round(float(s), 1)) for s in scores])  # same rounding as assess()
     for lvl in ("LOW", "MEDIUM", "HIGH"):
         n = int((levels == lvl).sum())
         print(f"  {lvl:6s} {n:4d} ({n / len(levels):5.1%})")

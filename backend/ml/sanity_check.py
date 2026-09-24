@@ -69,7 +69,7 @@ def main() -> None:
 
     print("\n--- tier x category ---")
     cats = sorted({p.category for p in products})
-    levels = np.array([risk_level_for_score(s) for s in scores])
+    levels = np.array([risk_level_for_score(round(float(s), 1)) for s in scores])  # same rounding as assess()
     print(f"{'':28s}" + "".join(f"{lvl:>9s}" for lvl in ("LOW", "MEDIUM", "HIGH")))
     for c in cats:
         m = np.array([p.category == c for p in products])

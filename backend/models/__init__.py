@@ -1,5 +1,47 @@
-from pydantic import BaseModel, Field, validator
-from typing import Optional, Dict, Any, Literal
+from pydantic import BaseModel, Field, model_serializer, validator
+from typing import Any, ClassVar, Dict, FrozenSet, List, Literal, Optional
+
+
+class _OmitWhenNone(BaseModel):
+    """Leaves the fields named in ``_omit_when_none`` out of the serialized output while they are None.
+
+    Used for the optional Phase 3 fields (``product_id``, ``product_risk``, ``escalated_from``), so a
+    request without a product_id gets a response byte-identical to the pre-Phase-3 API.
+    """
+
+    _omit_when_none: ClassVar[FrozenSet[str]] = frozenset()
+
+    @model_serializer(mode="wrap")
+    def _omit_none_fields(self, handler):
+        data = handler(self)
+        for name in self._omit_when_none:
+            if name in data and data[name] is None:
+                del data[name]
+        return data
+
+
+ProductIdField = Field(
+    None,
+    min_length=1,
+    max_length=200,
+    description=(
+        "Optional catalogue product (seed_products.json). When it matches, the product anomaly model can "
+        "escalate a LOW decision to MEDIUM; unknown or absent ids change nothing. Product signals are read "
+        "only from the catalogue, never from request fields."
+    ),
+)
+
+
+class ProductRiskModel(BaseModel):
+    """Output of services/product_risk.py: the Phase 2 anomaly score for a catalogue product."""
+
+    product_id: str
+    applicable: bool = Field(..., description="False when the id is not in the catalogue; the model then contributes nothing")
+    score: Optional[float] = Field(None, description="0–100, relative to the seed catalogue (not comparable to risk_score)")
+    level: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = None
+    top_features: List[Dict[str, Any]] = Field(default_factory=list, description="Features that raised the score, largest first")
+    imputed_features: List[str] = Field(default_factory=list, description="Unknown inputs filled with the training median")
+    reason: Optional[str] = Field(None, description="Why the model is not applicable")
 
 
 # ─── Input Models ────────────────────────────────────────────────────────────
@@ -56,6 +98,7 @@ class TransactionRequest(BaseModel):
     order_value: float = Field(..., gt=0, description="Order value in INR")
     is_new_pair: bool = Field(False, description="First transaction between this buyer-seller pair")
     is_new_device: bool = Field(False, description="Unusual device or location detected")
+    product_id: Optional[str] = ProductIdField
 
     class Config:
         json_schema_extra = {
@@ -78,7 +121,9 @@ class TrustScoreResponse(BaseModel):
     breakdown: Dict[str, Any] = Field(..., description="Score component breakdown")
 
 
-class RiskComponentsModel(BaseModel):
+class RiskComponentsModel(_OmitWhenNone):
+    _omit_when_none = frozenset({"product_risk"})
+
     base: float
     buyer_trust_reduction: float
     seller_trust_reduction: float
@@ -86,6 +131,9 @@ class RiskComponentsModel(BaseModel):
     interaction_risk: float
     context_risk: float
     transaction_risk_total: float
+    product_risk: Optional[ProductRiskModel] = Field(
+        None, description="Present when the request had a product_id. Not added into the score; it can only escalate the tier."
+    )
 
 
 class RiskScoreResponse(BaseModel):
@@ -95,8 +143,13 @@ class RiskScoreResponse(BaseModel):
     components: RiskComponentsModel
 
 
-class DecisionModel(BaseModel):
+class DecisionModel(_OmitWhenNone):
+    _omit_when_none = frozenset({"escalated_from"})
+
     risk_classification: str = Field(..., description="LOW | MEDIUM | HIGH")
+    escalated_from: Optional[str] = Field(
+        None, description="Set when the product risk model raised the tier; the tier risk_score alone implies"
+    )
     risk_range: str
     payment_action: str
     delivery_control: str
@@ -138,8 +191,10 @@ class SimulatorEvaluateRequest(BaseModel):
 # ─── Advanced product evaluation (LLM-augmented) ─────────────────────────────
 
 
-class EvaluateProductRequest(BaseModel):
+class EvaluateProductRequest(_OmitWhenNone):
     """POST /evaluate-product — request body; response echoes the same fields."""
+
+    _omit_when_none = frozenset({"product_id"})
 
     product_name: str = Field(..., min_length=1, max_length=500)
     product_price: float = Field(..., gt=0, le=10_000_000)
@@ -150,6 +205,7 @@ class EvaluateProductRequest(BaseModel):
     review_summary: str = Field("", max_length=20_000)
     is_new_interaction: bool = Field(False, description="First-time buyer–seller pair")
     new_device: bool = Field(False, description="Unrecognized device / session context")
+    product_id: Optional[str] = ProductIdField
 
     class Config:
         json_schema_extra = {
@@ -167,8 +223,10 @@ class EvaluateProductRequest(BaseModel):
         }
 
 
-class ProductEvaluateRiskBreakdown(BaseModel):
+class ProductEvaluateRiskBreakdown(_OmitWhenNone):
     """Component risks before clamp; final_risk = clamp(trust_risk + value_risk + context_risk)."""
+
+    _omit_when_none = frozenset({"product_risk"})
 
     trust_risk: float = Field(..., description="100 − 0.4×BT − 0.4×ST (same as base_risk)")
     value_risk: float = Field(..., description="INR price band add-on (5 / 15 / 25)")
@@ -176,10 +234,15 @@ class ProductEvaluateRiskBreakdown(BaseModel):
         ...,
         description="New buyer–seller pair (+20) + new device (+10)",
     )
+    product_risk: Optional[ProductRiskModel] = Field(
+        None, description="Present when the request had a product_id. Not added into final_risk; it can only escalate the decision."
+    )
 
 
 class EvaluateProductResponse(EvaluateProductRequest):
     """POST /evaluate-product — full structured evaluation."""
+
+    _omit_when_none = frozenset({"product_id", "escalated_from"})
 
     buyer_trust: float = Field(..., description="Buyer Trust Score (BT), clamped 0–100")
     seller_trust: float = Field(..., description="Seller Trust Score (ST), clamped 0–100")
@@ -191,7 +254,10 @@ class EvaluateProductResponse(EvaluateProductRequest):
     )
     decision: Literal["LOW", "MEDIUM", "HIGH"] = Field(
         ...,
-        description="LOW ≤30, MEDIUM ≤60, HIGH otherwise (same bands as RiskEngine)",
+        description="LOW ≤30, MEDIUM ≤60, HIGH otherwise (same bands as RiskEngine), then escalate-only product risk",
+    )
+    escalated_from: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = Field(
+        None, description="Set when the product risk model raised the decision; the tier final_risk alone implies"
     )
     signals: list[str] = Field(
         ...,
