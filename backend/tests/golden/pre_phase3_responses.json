@@ -2,6 +2,91 @@
   "decision_evaluate.low_risk": {
     "status": 200,
     "body": {
+      "buyer_trust": 100.0,
+      "buyer_trust_level": "High",
+      "buyer_breakdown": {
+        "base": 40.0,
+        "order_bonus": 400.0,
+        "dispute_rate_percent": 0.0,
+        "dispute_penalty": 0.0,
+        "fraud_penalty": 0.0,
+        "raw_score": 440.0,
+        "clamped_score": 100.0,
+        "tier": {
+          "level": 3,
+          "label": "Highly Trusted",
+          "unlocks": [
+            "Instant settlement",
+            "Almost never challenged"
+          ]
+        }
+      },
+      "seller_trust": 100.0,
+      "seller_trust_level": "High",
+      "seller_breakdown": {
+        "base": 50.0,
+        "order_bonus": 600.0,
+        "complaint_rate_percent": 0.99,
+        "complaint_penalty": 1.98,
+        "fraud_penalty": 0.0,
+        "raw_score": 648.02,
+        "clamped_score": 100.0,
+        "tier": {
+          "level": 3,
+          "label": "Highly Trusted Seller",
+          "note": "Complaint rate < 3%"
+        }
+      },
+      "risk_score": 25.0,
+      "risk_components": {
+        "base": 100.0,
+        "buyer_trust_reduction": 40.0,
+        "seller_trust_reduction": 40.0,
+        "value_risk": 5.0,
+        "interaction_risk": 0.0,
+        "context_risk": 0.0,
+        "transaction_risk_total": 5.0
+      },
+      "decision": {
+        "risk_classification": "LOW",
+        "risk_range": "0–30",
+        "payment_action": "Immediate authorization + capture",
+        "delivery_control": "No restrictions — standard delivery",
+        "verification_type": "Passive (silent window only)",
+        "settlement_mechanism": "Instant settlement to seller",
+        "trustos_role": "Observer only — no active intervention",
+        "safety_window": "30–60 minutes post-delivery (silent)",
+        "enforcement_actions": [
+          "Log transaction with risk score",
+          "Attach silent protection window (30–60 min)",
+          "If no issue reported → auto-confirm settlement",
+          "Update trust scores on completion"
+        ],
+        "money_flow": "Buyer → Gateway → Seller (normal flow). TrustOS only observes.",
+        "killer_line": "When trust is high, TrustOS stays invisible."
+      }
+    }
+  },
+  "risk_score.low_risk": {
+    "status": 200,
+    "body": {
+      "risk_score": 25.0,
+      "buyer_trust": 100.0,
+      "seller_trust": 100.0,
+      "components": {
+        "base": 100.0,
+        "buyer_trust_reduction": 40.0,
+        "seller_trust_reduction": 40.0,
+        "value_risk": 5.0,
+        "interaction_risk": 0.0,
+        "context_risk": 0.0,
+        "transaction_risk_total": 5.0
+      }
+    }
+  },
+  "decision_evaluate.medium_risk": {
+    "status": 200,
+    "body": {
       "buyer_trust": 52.46,
       "buyer_trust_level": "Medium",
       "buyer_breakdown": {
@@ -72,7 +157,7 @@
       }
     }
   },
-  "risk_score.low_risk": {
+  "risk_score.medium_risk": {
     "status": 200,
     "body": {
       "risk_score": 44.02,
@@ -86,98 +171,6 @@
         "interaction_risk": 0.0,
         "context_risk": 0.0,
         "transaction_risk_total": 5.0
-      }
-    }
-  },
-  "decision_evaluate.medium_risk": {
-    "status": 200,
-    "body": {
-      "buyer_trust": 25.0,
-      "buyer_trust_level": "Low",
-      "buyer_breakdown": {
-        "base": 40.0,
-        "order_bonus": 10.0,
-        "dispute_rate_percent": 16.67,
-        "dispute_penalty": 25.0,
-        "fraud_penalty": 0.0,
-        "raw_score": 25.0,
-        "clamped_score": 25.0,
-        "tier": {
-          "level": 1,
-          "label": "Basic Trust",
-          "unlocks": [
-            "No video (most cases)",
-            "Passive confirmation"
-          ]
-        }
-      },
-      "seller_trust": 66.07,
-      "seller_trust_level": "Medium",
-      "seller_breakdown": {
-        "base": 50.0,
-        "order_bonus": 37.5,
-        "complaint_rate_percent": 10.71,
-        "complaint_penalty": 21.43,
-        "fraud_penalty": 0.0,
-        "raw_score": 66.07,
-        "clamped_score": 66.07,
-        "tier": {
-          "level": 1,
-          "label": "Emerging Seller",
-          "note": "Complaint rate < 15%"
-        }
-      },
-      "risk_score": 98.57,
-      "risk_components": {
-        "base": 100.0,
-        "buyer_trust_reduction": 10.0,
-        "seller_trust_reduction": 26.43,
-        "value_risk": 15.0,
-        "interaction_risk": 20.0,
-        "context_risk": 0.0,
-        "transaction_risk_total": 35.0
-      },
-      "decision": {
-        "risk_classification": "HIGH",
-        "risk_range": "61–100",
-        "payment_action": "Funds routed to wallet holding layer (NOT to seller)",
-        "delivery_control": "Controlled delivery — OTP required, no unattended drop",
-        "verification_type": "Mandatory guided unboxing video (continuous, no cuts)",
-        "settlement_mechanism": "RELEASE wallet → seller only after verified delivery",
-        "trustos_role": "Full control — takes over payment path and verification",
-        "safety_window": "15–30 minute strict window post-delivery",
-        "enforcement_actions": [
-          "Route payment: Buyer → Wallet (e.g. Paytm) — seller gets ₹0 initially",
-          "TrustOS holds release authority over wallet",
-          "Enforce attended delivery with OTP-based handoff",
-          "Require seller to attach QR seal + pack properly",
-          "Trigger guided unboxing: sealed package → QR/seal → continuous opening → product inside",
-          "No cuts allowed in verification video",
-          "CASE correct + video consistent: RELEASE wallet → seller",
-          "CASE wrong item / scam: DO NOT release — seller gets ₹0, buyer refunded",
-          "CASE buyer attempts cheat: check seal continuity + video consistency + history; reject claim",
-          "CASE no video in window (15–30 min): auto-release",
-          "Heavy trust penalty applied to fraudulent party"
-        ],
-        "money_flow": "Step 1: Buyer → Wallet (money held, seller gets ₹0).\nStep 2: Delivery + Verification.\nIF OK → Wallet → Seller (RELEASE).\nIF Fraud → Wallet → Buyer (no release to seller).",
-        "killer_line": "Money doesn't move until trust is proven !"
-      }
-    }
-  },
-  "risk_score.medium_risk": {
-    "status": 200,
-    "body": {
-      "risk_score": 98.57,
-      "buyer_trust": 25.0,
-      "seller_trust": 66.07,
-      "components": {
-        "base": 100.0,
-        "buyer_trust_reduction": 10.0,
-        "seller_trust_reduction": 26.43,
-        "value_risk": 15.0,
-        "interaction_risk": 20.0,
-        "context_risk": 0.0,
-        "transaction_risk_total": 35.0
       }
     }
   },
@@ -272,92 +265,127 @@
       }
     }
   },
-  "decision_evaluate.trusted": {
+  "decision_evaluate.high_risk_unclamped": {
     "status": 200,
     "body": {
-      "buyer_trust": 100.0,
-      "buyer_trust_level": "High",
+      "buyer_trust": 25.0,
+      "buyer_trust_level": "Low",
       "buyer_breakdown": {
         "base": 40.0,
-        "order_bonus": 400.0,
-        "dispute_rate_percent": 0.0,
-        "dispute_penalty": 0.0,
+        "order_bonus": 10.0,
+        "dispute_rate_percent": 16.67,
+        "dispute_penalty": 25.0,
         "fraud_penalty": 0.0,
-        "raw_score": 440.0,
-        "clamped_score": 100.0,
+        "raw_score": 25.0,
+        "clamped_score": 25.0,
         "tier": {
-          "level": 3,
-          "label": "Highly Trusted",
+          "level": 1,
+          "label": "Basic Trust",
           "unlocks": [
-            "Instant settlement",
-            "Almost never challenged"
+            "No video (most cases)",
+            "Passive confirmation"
           ]
         }
       },
-      "seller_trust": 100.0,
-      "seller_trust_level": "High",
+      "seller_trust": 66.07,
+      "seller_trust_level": "Medium",
       "seller_breakdown": {
         "base": 50.0,
-        "order_bonus": 600.0,
-        "complaint_rate_percent": 0.99,
-        "complaint_penalty": 1.98,
+        "order_bonus": 37.5,
+        "complaint_rate_percent": 10.71,
+        "complaint_penalty": 21.43,
         "fraud_penalty": 0.0,
-        "raw_score": 648.02,
-        "clamped_score": 100.0,
+        "raw_score": 66.07,
+        "clamped_score": 66.07,
         "tier": {
-          "level": 3,
-          "label": "Highly Trusted Seller",
-          "note": "Complaint rate < 3%"
+          "level": 1,
+          "label": "Emerging Seller",
+          "note": "Complaint rate < 15%"
         }
       },
-      "risk_score": 25.0,
+      "risk_score": 98.57,
       "risk_components": {
         "base": 100.0,
-        "buyer_trust_reduction": 40.0,
-        "seller_trust_reduction": 40.0,
-        "value_risk": 5.0,
-        "interaction_risk": 0.0,
+        "buyer_trust_reduction": 10.0,
+        "seller_trust_reduction": 26.43,
+        "value_risk": 15.0,
+        "interaction_risk": 20.0,
         "context_risk": 0.0,
-        "transaction_risk_total": 5.0
+        "transaction_risk_total": 35.0
       },
       "decision": {
-        "risk_classification": "LOW",
-        "risk_range": "0–30",
-        "payment_action": "Immediate authorization + capture",
-        "delivery_control": "No restrictions — standard delivery",
-        "verification_type": "Passive (silent window only)",
-        "settlement_mechanism": "Instant settlement to seller",
-        "trustos_role": "Observer only — no active intervention",
-        "safety_window": "30–60 minutes post-delivery (silent)",
+        "risk_classification": "HIGH",
+        "risk_range": "61–100",
+        "payment_action": "Funds routed to wallet holding layer (NOT to seller)",
+        "delivery_control": "Controlled delivery — OTP required, no unattended drop",
+        "verification_type": "Mandatory guided unboxing video (continuous, no cuts)",
+        "settlement_mechanism": "RELEASE wallet → seller only after verified delivery",
+        "trustos_role": "Full control — takes over payment path and verification",
+        "safety_window": "15–30 minute strict window post-delivery",
         "enforcement_actions": [
-          "Log transaction with risk score",
-          "Attach silent protection window (30–60 min)",
-          "If no issue reported → auto-confirm settlement",
-          "Update trust scores on completion"
+          "Route payment: Buyer → Wallet (e.g. Paytm) — seller gets ₹0 initially",
+          "TrustOS holds release authority over wallet",
+          "Enforce attended delivery with OTP-based handoff",
+          "Require seller to attach QR seal + pack properly",
+          "Trigger guided unboxing: sealed package → QR/seal → continuous opening → product inside",
+          "No cuts allowed in verification video",
+          "CASE correct + video consistent: RELEASE wallet → seller",
+          "CASE wrong item / scam: DO NOT release — seller gets ₹0, buyer refunded",
+          "CASE buyer attempts cheat: check seal continuity + video consistency + history; reject claim",
+          "CASE no video in window (15–30 min): auto-release",
+          "Heavy trust penalty applied to fraudulent party"
         ],
-        "money_flow": "Buyer → Gateway → Seller (normal flow). TrustOS only observes.",
-        "killer_line": "When trust is high, TrustOS stays invisible."
+        "money_flow": "Step 1: Buyer → Wallet (money held, seller gets ₹0).\nStep 2: Delivery + Verification.\nIF OK → Wallet → Seller (RELEASE).\nIF Fraud → Wallet → Buyer (no release to seller).",
+        "killer_line": "Money doesn't move until trust is proven !"
       }
     }
   },
-  "risk_score.trusted": {
+  "risk_score.high_risk_unclamped": {
     "status": 200,
     "body": {
-      "risk_score": 25.0,
-      "buyer_trust": 100.0,
-      "seller_trust": 100.0,
+      "risk_score": 98.57,
+      "buyer_trust": 25.0,
+      "seller_trust": 66.07,
       "components": {
         "base": 100.0,
-        "buyer_trust_reduction": 40.0,
-        "seller_trust_reduction": 40.0,
-        "value_risk": 5.0,
-        "interaction_risk": 0.0,
+        "buyer_trust_reduction": 10.0,
+        "seller_trust_reduction": 26.43,
+        "value_risk": 15.0,
+        "interaction_risk": 20.0,
         "context_risk": 0.0,
-        "transaction_risk_total": 5.0
+        "transaction_risk_total": 35.0
       }
     }
   },
   "evaluate_product.low_risk": {
+    "status": 200,
+    "body": {
+      "product_name": "Cotton tote bag",
+      "product_price": 900.0,
+      "seller_orders": 200,
+      "seller_complaints": 0,
+      "buyer_orders": 60,
+      "buyer_disputes": 0,
+      "review_summary": "Plenty of positive reviews.",
+      "is_new_interaction": false,
+      "new_device": false,
+      "buyer_trust": 100.0,
+      "seller_trust": 100.0,
+      "base_risk": 20.0,
+      "risk_breakdown": {
+        "trust_risk": 20.0,
+        "value_risk": 5.0,
+        "context_risk": 0.0
+      },
+      "final_risk": 27.0,
+      "decision": "LOW",
+      "signals": [],
+      "risk_modifier": 0.0,
+      "confidence": 0.2,
+      "behavior_risk": 2.0
+    }
+  },
+  "evaluate_product.medium_risk": {
     "status": 200,
     "body": {
       "product_name": "Ergonomic desk lamp",
@@ -383,36 +411,6 @@
       "risk_modifier": -5.0,
       "confidence": 0.8,
       "behavior_risk": 8.0
-    }
-  },
-  "evaluate_product.medium_risk": {
-    "status": 200,
-    "body": {
-      "product_name": "Wireless mechanical keyboard",
-      "product_price": 6200.0,
-      "seller_orders": 22,
-      "seller_complaints": 5,
-      "buyer_orders": 14,
-      "buyer_disputes": 4,
-      "review_summary": "Some buyers report packaging issues; seller responds to tickets.",
-      "is_new_interaction": true,
-      "new_device": false,
-      "buyer_trust": 63.71,
-      "seller_trust": 78.45,
-      "base_risk": 43.13,
-      "risk_breakdown": {
-        "trust_risk": 43.13,
-        "value_risk": 15.0,
-        "context_risk": 20.0
-      },
-      "final_risk": 91.13,
-      "decision": "HIGH",
-      "signals": [
-        "packaging complaints"
-      ],
-      "risk_modifier": 5.0,
-      "confidence": 0.6,
-      "behavior_risk": 13.0
     }
   },
   "evaluate_product.high_risk": {
@@ -445,6 +443,36 @@
       "risk_modifier": 20.0,
       "confidence": 0.9,
       "behavior_risk": 30.0
+    }
+  },
+  "evaluate_product.high_risk_unclamped": {
+    "status": 200,
+    "body": {
+      "product_name": "Wireless mechanical keyboard",
+      "product_price": 6200.0,
+      "seller_orders": 22,
+      "seller_complaints": 5,
+      "buyer_orders": 14,
+      "buyer_disputes": 4,
+      "review_summary": "Some buyers report packaging issues; seller responds to tickets.",
+      "is_new_interaction": true,
+      "new_device": false,
+      "buyer_trust": 63.71,
+      "seller_trust": 78.45,
+      "base_risk": 43.13,
+      "risk_breakdown": {
+        "trust_risk": 43.13,
+        "value_risk": 15.0,
+        "context_risk": 20.0
+      },
+      "final_risk": 91.13,
+      "decision": "HIGH",
+      "signals": [
+        "packaging complaints"
+      ],
+      "risk_modifier": 5.0,
+      "confidence": 0.6,
+      "behavior_risk": 13.0
     }
   },
   "evaluate_product.low_value_high_risk": {
@@ -504,34 +532,6 @@
       "risk_modifier": -10.0,
       "confidence": 0.95,
       "behavior_risk": 9.5
-    }
-  },
-  "evaluate_product.trusted_cheap": {
-    "status": 200,
-    "body": {
-      "product_name": "Cotton tote bag",
-      "product_price": 900.0,
-      "seller_orders": 200,
-      "seller_complaints": 0,
-      "buyer_orders": 60,
-      "buyer_disputes": 0,
-      "review_summary": "Plenty of positive reviews.",
-      "is_new_interaction": false,
-      "new_device": false,
-      "buyer_trust": 100.0,
-      "seller_trust": 100.0,
-      "base_risk": 20.0,
-      "risk_breakdown": {
-        "trust_risk": 20.0,
-        "value_risk": 5.0,
-        "context_risk": 0.0
-      },
-      "final_risk": 27.0,
-      "decision": "LOW",
-      "signals": [],
-      "risk_modifier": 0.0,
-      "confidence": 0.2,
-      "behavior_risk": 2.0
     }
   },
   "simulator_evaluate.defaults": {
@@ -752,6 +752,140 @@
   "simulate.low_risk": {
     "status": 200,
     "body": {
+      "buyer_trust": 100.0,
+      "buyer_trust_level": "High",
+      "buyer_breakdown": {
+        "base": 40.0,
+        "order_bonus": 400.0,
+        "dispute_rate_percent": 0.0,
+        "dispute_penalty": 0.0,
+        "fraud_penalty": 0.0,
+        "raw_score": 440.0,
+        "clamped_score": 100.0,
+        "tier": {
+          "level": 3,
+          "label": "Highly Trusted",
+          "unlocks": [
+            "Instant settlement",
+            "Almost never challenged"
+          ]
+        }
+      },
+      "seller_trust": 100.0,
+      "seller_trust_level": "High",
+      "seller_breakdown": {
+        "base": 50.0,
+        "order_bonus": 600.0,
+        "complaint_rate_percent": 0.99,
+        "complaint_penalty": 1.98,
+        "fraud_penalty": 0.0,
+        "raw_score": 648.02,
+        "clamped_score": 100.0,
+        "tier": {
+          "level": 3,
+          "label": "Highly Trusted Seller",
+          "note": "Complaint rate < 3%"
+        }
+      },
+      "risk_score": 25.0,
+      "risk_components": {
+        "base": 100.0,
+        "buyer_trust_reduction": 40.0,
+        "seller_trust_reduction": 40.0,
+        "value_risk": 5.0,
+        "interaction_risk": 0.0,
+        "context_risk": 0.0,
+        "transaction_risk_total": 5.0
+      },
+      "decision": {
+        "risk_classification": "LOW",
+        "risk_range": "0–30",
+        "payment_action": "Immediate authorization + capture",
+        "delivery_control": "No restrictions — standard delivery",
+        "verification_type": "Passive (silent window only)",
+        "settlement_mechanism": "Instant settlement to seller",
+        "trustos_role": "Observer only — no active intervention",
+        "safety_window": "30–60 minutes post-delivery (silent)",
+        "enforcement_actions": [
+          "Log transaction with risk score",
+          "Attach silent protection window (30–60 min)",
+          "If no issue reported → auto-confirm settlement",
+          "Update trust scores on completion"
+        ],
+        "money_flow": "Buyer → Gateway → Seller (normal flow). TrustOS only observes.",
+        "killer_line": "When trust is high, TrustOS stays invisible."
+      }
+    }
+  },
+  "evaluate_risk.low_risk": {
+    "status": 200,
+    "body": {
+      "riskLevel": "LOW",
+      "riskScore": 25.0
+    }
+  },
+  "payment_lifecycle.low_risk": {
+    "status": 200,
+    "body": {
+      "provider": "Razorpay Simulation",
+      "risk_classification": "LOW",
+      "current_phase": "CAPTURED",
+      "phases": [
+        {
+          "id": "authorized",
+          "label": "AUTHORIZED",
+          "description": "Payment authorized at gateway",
+          "state": "complete"
+        },
+        {
+          "id": "held",
+          "label": "HELD",
+          "description": "Escrow not required — funds route directly",
+          "state": "skipped"
+        },
+        {
+          "id": "captured",
+          "label": "CAPTURED",
+          "description": "Settlement to seller (low risk)",
+          "state": "complete"
+        }
+      ]
+    }
+  },
+  "initiate_payment.low_risk": {
+    "status": 200,
+    "body": {
+      "status": "CAPTURED",
+      "lifecycle": {
+        "provider": "Razorpay Simulation",
+        "risk_classification": "LOW",
+        "current_phase": "CAPTURED",
+        "phases": [
+          {
+            "id": "authorized",
+            "label": "AUTHORIZED",
+            "description": "Payment authorized at gateway",
+            "state": "complete"
+          },
+          {
+            "id": "held",
+            "label": "HELD",
+            "description": "Escrow not required — funds route directly",
+            "state": "skipped"
+          },
+          {
+            "id": "captured",
+            "label": "CAPTURED",
+            "description": "Settlement to seller (low risk)",
+            "state": "complete"
+          }
+        ]
+      }
+    }
+  },
+  "simulate.medium_risk": {
+    "status": 200,
+    "body": {
       "buyer_trust": 52.46,
       "buyer_trust_level": "Medium",
       "buyer_breakdown": {
@@ -822,14 +956,14 @@
       }
     }
   },
-  "evaluate_risk.low_risk": {
+  "evaluate_risk.medium_risk": {
     "status": 200,
     "body": {
       "riskLevel": "MEDIUM",
       "riskScore": 44.02
     }
   },
-  "payment_lifecycle.low_risk": {
+  "payment_lifecycle.medium_risk": {
     "status": 200,
     "body": {
       "provider": "Razorpay Simulation",
@@ -857,7 +991,7 @@
       ]
     }
   },
-  "initiate_payment.low_risk": {
+  "initiate_payment.medium_risk": {
     "status": 200,
     "body": {
       "status": "AUTHORIZED",
@@ -882,147 +1016,6 @@
             "id": "captured",
             "label": "CAPTURED",
             "description": "Released to seller after confirmation / timer",
-            "state": "pending"
-          }
-        ]
-      }
-    }
-  },
-  "simulate.medium_risk": {
-    "status": 200,
-    "body": {
-      "buyer_trust": 25.0,
-      "buyer_trust_level": "Low",
-      "buyer_breakdown": {
-        "base": 40.0,
-        "order_bonus": 10.0,
-        "dispute_rate_percent": 16.67,
-        "dispute_penalty": 25.0,
-        "fraud_penalty": 0.0,
-        "raw_score": 25.0,
-        "clamped_score": 25.0,
-        "tier": {
-          "level": 1,
-          "label": "Basic Trust",
-          "unlocks": [
-            "No video (most cases)",
-            "Passive confirmation"
-          ]
-        }
-      },
-      "seller_trust": 66.07,
-      "seller_trust_level": "Medium",
-      "seller_breakdown": {
-        "base": 50.0,
-        "order_bonus": 37.5,
-        "complaint_rate_percent": 10.71,
-        "complaint_penalty": 21.43,
-        "fraud_penalty": 0.0,
-        "raw_score": 66.07,
-        "clamped_score": 66.07,
-        "tier": {
-          "level": 1,
-          "label": "Emerging Seller",
-          "note": "Complaint rate < 15%"
-        }
-      },
-      "risk_score": 98.57,
-      "risk_components": {
-        "base": 100.0,
-        "buyer_trust_reduction": 10.0,
-        "seller_trust_reduction": 26.43,
-        "value_risk": 15.0,
-        "interaction_risk": 20.0,
-        "context_risk": 0.0,
-        "transaction_risk_total": 35.0
-      },
-      "decision": {
-        "risk_classification": "HIGH",
-        "risk_range": "61–100",
-        "payment_action": "Funds routed to wallet holding layer (NOT to seller)",
-        "delivery_control": "Controlled delivery — OTP required, no unattended drop",
-        "verification_type": "Mandatory guided unboxing video (continuous, no cuts)",
-        "settlement_mechanism": "RELEASE wallet → seller only after verified delivery",
-        "trustos_role": "Full control — takes over payment path and verification",
-        "safety_window": "15–30 minute strict window post-delivery",
-        "enforcement_actions": [
-          "Route payment: Buyer → Wallet (e.g. Paytm) — seller gets ₹0 initially",
-          "TrustOS holds release authority over wallet",
-          "Enforce attended delivery with OTP-based handoff",
-          "Require seller to attach QR seal + pack properly",
-          "Trigger guided unboxing: sealed package → QR/seal → continuous opening → product inside",
-          "No cuts allowed in verification video",
-          "CASE correct + video consistent: RELEASE wallet → seller",
-          "CASE wrong item / scam: DO NOT release — seller gets ₹0, buyer refunded",
-          "CASE buyer attempts cheat: check seal continuity + video consistency + history; reject claim",
-          "CASE no video in window (15–30 min): auto-release",
-          "Heavy trust penalty applied to fraudulent party"
-        ],
-        "money_flow": "Step 1: Buyer → Wallet (money held, seller gets ₹0).\nStep 2: Delivery + Verification.\nIF OK → Wallet → Seller (RELEASE).\nIF Fraud → Wallet → Buyer (no release to seller).",
-        "killer_line": "Money doesn't move until trust is proven !"
-      }
-    }
-  },
-  "evaluate_risk.medium_risk": {
-    "status": 200,
-    "body": {
-      "riskLevel": "HIGH",
-      "riskScore": 98.57
-    }
-  },
-  "payment_lifecycle.medium_risk": {
-    "status": 200,
-    "body": {
-      "provider": "Razorpay Simulation",
-      "risk_classification": "HIGH",
-      "current_phase": "HELD",
-      "phases": [
-        {
-          "id": "authorized",
-          "label": "AUTHORIZED",
-          "description": "Authorization recorded",
-          "state": "complete"
-        },
-        {
-          "id": "held",
-          "label": "HELD",
-          "description": "Full hold until verification completes",
-          "state": "active"
-        },
-        {
-          "id": "captured",
-          "label": "CAPTURED",
-          "description": "Only after multi-factor verification",
-          "state": "pending"
-        }
-      ]
-    }
-  },
-  "initiate_payment.medium_risk": {
-    "status": 200,
-    "body": {
-      "status": "HELD",
-      "lifecycle": {
-        "provider": "Razorpay Simulation",
-        "risk_classification": "HIGH",
-        "current_phase": "HELD",
-        "phases": [
-          {
-            "id": "authorized",
-            "label": "AUTHORIZED",
-            "description": "Authorization recorded",
-            "state": "complete"
-          },
-          {
-            "id": "held",
-            "label": "HELD",
-            "description": "Full hold until verification completes",
-            "state": "active"
-          },
-          {
-            "id": "captured",
-            "label": "CAPTURED",
-            "description": "Only after multi-factor verification",
             "state": "pending"
           }
         ]

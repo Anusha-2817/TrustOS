@@ -98,7 +98,7 @@ def test_sklearn_is_imported_lazily():
         "from fastapi.testclient import TestClient\n"
         "import main\n"
         "c = TestClient(main.app)\n"
-        f"body = {TRANSACTIONS['low_risk']!r}\n"
+        f"body = {TRANSACTIONS['medium_risk']!r}\n"
         "assert c.post('/decision/evaluate', json=body).status_code == 200\n"
         f"assert c.post('/decision/evaluate', json={{**body, 'product_id': {UNKNOWN!r}}}).status_code == 200\n"
         "assert 'sklearn' not in sys.modules, 'sklearn imported without a catalogue product'\n"
@@ -118,30 +118,30 @@ def _decision(client, txn, product_id):
 
 
 def test_low_transaction_escalated_by_high_product(client):
-    base = GOLDEN["decision_evaluate.trusted"]["body"]
+    base = GOLDEN["decision_evaluate.low_risk"]["body"]
     assert base["decision"]["risk_classification"] == "LOW"
-    got = _decision(client, "trusted", ML_HIGH)
+    got = _decision(client, "low_risk", ML_HIGH)
     assert got["decision"]["risk_classification"] == "MEDIUM"
     assert got["decision"]["escalated_from"] == "LOW"
     assert got["risk_score"] == base["risk_score"]  # the score itself is untouched
     assert got["risk_components"]["product_risk"]["level"] == "HIGH"
     # Apart from escalated_from, the decision is exactly the regular MEDIUM decision.
-    medium = GOLDEN["decision_evaluate.low_risk"]["body"]["decision"]  # a recorded MEDIUM decision
+    medium = GOLDEN["decision_evaluate.medium_risk"]["body"]["decision"]  # a recorded MEDIUM decision
     assert {k: v for k, v in got["decision"].items() if k != "escalated_from"} == medium
 
 
 def test_low_transaction_escalated_by_medium_product(client):
-    got = _decision(client, "trusted", ML_MEDIUM)
+    got = _decision(client, "low_risk", ML_MEDIUM)
     assert got["decision"]["risk_classification"] == "MEDIUM"
     assert got["decision"]["escalated_from"] == "LOW"
 
 
 def test_low_product_changes_nothing_but_reports_itself(client):
-    got = _decision(client, "trusted", ML_LOW)
+    got = _decision(client, "low_risk", ML_LOW)
     assert "escalated_from" not in got["decision"]
     assert got["risk_components"]["product_risk"]["level"] == "LOW"
     got["risk_components"].pop("product_risk")
-    assert got == GOLDEN["decision_evaluate.trusted"]["body"]
+    assert got == GOLDEN["decision_evaluate.low_risk"]["body"]
 
 
 @pytest.mark.parametrize("product_id", [ML_LOW, ML_MEDIUM, ML_HIGH])
@@ -152,15 +152,15 @@ def test_high_transaction_stays_high(client, product_id):
 
 
 def test_medium_transaction_is_not_raised_to_high(client):
-    got = _decision(client, "low_risk", ML_HIGH)  # main.py's "low_risk" scenario scores MEDIUM
+    got = _decision(client, "medium_risk", ML_HIGH)  # a MEDIUM (44.02) transaction
     assert got["decision"]["risk_classification"] == "MEDIUM"
     assert "escalated_from" not in got["decision"]
 
 
 def test_evaluate_product_escalation(client):
-    base = GOLDEN["evaluate_product.trusted_cheap"]["body"]
+    base = GOLDEN["evaluate_product.low_risk"]["body"]
     assert base["decision"] == "LOW"
-    r = client.post("/evaluate-product", json={**PRODUCT_EVALUATIONS["trusted_cheap"], "product_id": ML_HIGH})
+    r = client.post("/evaluate-product", json={**PRODUCT_EVALUATIONS["low_risk"], "product_id": ML_HIGH})
     got = r.json()
     assert got["decision"] == "MEDIUM" and got["escalated_from"] == "LOW"
     assert got["final_risk"] == base["final_risk"]
@@ -175,7 +175,7 @@ def test_evaluate_product_high_stays_high(client):
 
 
 def test_risk_score_reports_product_risk_without_changing_score(client):
-    r = client.post("/risk/score", json={**TRANSACTIONS["trusted"], "product_id": ML_HIGH})
+    r = client.post("/risk/score", json={**TRANSACTIONS["low_risk"], "product_id": ML_HIGH})
     got = r.json()
-    assert got["risk_score"] == GOLDEN["risk_score.trusted"]["body"]["risk_score"]
+    assert got["risk_score"] == GOLDEN["risk_score.low_risk"]["body"]["risk_score"]
     assert got["components"]["product_risk"]["level"] == "HIGH"
