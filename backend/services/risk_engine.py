@@ -36,6 +36,10 @@ def clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 class RiskEngine:
 
+    # Tier cutoffs — the single source of truth (DecisionEngine and ml/risk_model.py import these).
+    LOW_MAX = 30.0     # score <= LOW_MAX           → LOW
+    MEDIUM_MAX = 60.0  # LOW_MAX < score <= MEDIUM_MAX → MEDIUM, above → HIGH
+
     # Value risk thresholds (in INR)
     VALUE_THRESHOLDS = [
         (3_000, 5),
@@ -92,11 +96,12 @@ class RiskEngine:
                 return float(points)
         return 25.0  # fallback for very large values
 
-    def classify(self, risk_score: float) -> str:
+    @staticmethod
+    def classify(risk_score: float) -> str:
         """Classify a risk score into LOW / MEDIUM / HIGH."""
-        if risk_score <= 30:
+        if risk_score <= RiskEngine.LOW_MAX:
             return "LOW"
-        elif risk_score <= 60:
+        elif risk_score <= RiskEngine.MEDIUM_MAX:
             return "MEDIUM"
         else:
             return "HIGH"

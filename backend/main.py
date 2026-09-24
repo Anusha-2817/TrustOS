@@ -14,8 +14,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from services.trust_engine import TrustEngine
 from services.risk_engine import RiskEngine
-from services.decision_engine import DecisionEngine
+from services.decision_engine import escalate_tier
 from services.payment_engine import call_llm
+from services.pipeline import run_pipeline
+from services.product_risk import assess_product
 from models import (
     BuyerProfile, SellerProfile, TransactionRequest,
     TrustScoreResponse, RiskScoreResponse, DecisionModel,
@@ -41,7 +43,6 @@ app.add_middleware(
 
 trust_engine = TrustEngine()
 risk_engine = RiskEngine()
-decision_engine = DecisionEngine()
 
 
 def _clamp_trust(score: float) -> float:
@@ -116,7 +117,9 @@ def evaluate_product(body: EvaluateProductRequest):
         max(0.0, min(100.0, existing_final_risk + behavior_risk)),
         2,
     )
-    decision = risk_engine.classify(final_risk)
+    base_decision = risk_engine.classify(final_risk)
+    product_risk = assess_product(body.product_id)
+    decision = escalate_tier(base_decision, product_risk)
 
     return EvaluateProductResponse(
         **body.model_dump(),
@@ -127,9 +130,11 @@ def evaluate_product(body: EvaluateProductRequest):
             trust_risk=round(trust_risk, 2),
             value_risk=float(value_risk),
             context_risk=context_risk,
+            product_risk=product_risk,
         ),
         final_risk=final_risk,
         decision=decision,
+        escalated_from=base_decision if decision != base_decision else None,
         signals=signals,
         risk_modifier=risk_modifier,
         confidence=confidence,
@@ -149,6 +154,7 @@ def compute_risk_score(request: TransactionRequest):
         is_new_pair=request.is_new_pair,
         is_new_device=request.is_new_device
     )
+    risk_components.product_risk = assess_product(request.product_id)
     return RiskScoreResponse(
         risk_score=risk_score,
         buyer_trust=buyer_score,
@@ -182,42 +188,16 @@ def evaluate_simulator(body: SimulatorEvaluateRequest):
         is_new_pair=body.is_new_pair,
         is_new_device=body.is_new_device,
     )
-    return _run_pipeline(req)
+    return run_pipeline(req)
 
 
 @app.post("/decision/evaluate", response_model=FullEvaluationResponse, tags=["Decision Engine"])
 def evaluate_transaction(request: TransactionRequest):
     """
-    Full pipeline: Trust → Risk → Decision.
+    Full pipeline: Trust → Risk → Decision (+ escalate-only product risk when product_id is set).
     Returns trust scores, risk score, risk classification, and enforcement actions.
     """
-    # Step 1: Trust Scores
-    buyer_trust, buyer_level, buyer_breakdown = trust_engine.compute_buyer_trust(request.buyer)
-    seller_trust, seller_level, seller_breakdown = trust_engine.compute_seller_trust(request.seller)
-
-    # Step 2: Risk Score
-    risk_score, risk_components = risk_engine.compute_risk(
-        buyer_trust=buyer_trust,
-        seller_trust=seller_trust,
-        order_value=request.order_value,
-        is_new_pair=request.is_new_pair,
-        is_new_device=request.is_new_device
-    )
-
-    # Step 3: Decision
-    decision = decision_engine.decide(risk_score, buyer_trust, seller_trust)
-
-    return FullEvaluationResponse(
-        buyer_trust=buyer_trust,
-        buyer_trust_level=buyer_level,
-        buyer_breakdown=buyer_breakdown,
-        seller_trust=seller_trust,
-        seller_trust_level=seller_level,
-        seller_breakdown=seller_breakdown,
-        risk_score=risk_score,
-        risk_components=risk_components,
-        decision=decision
-    )
+    return run_pipeline(request)
 
 
 # ─── Simulation Endpoint ─────────────────────────────────────────────────────
@@ -255,29 +235,7 @@ def simulate_scenario(scenario: str):
     if scenario not in scenarios:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario}' not found. Choose: low_risk, medium_risk, high_risk")
 
-    req = scenarios[scenario]
-    buyer_trust, buyer_level, buyer_breakdown = trust_engine.compute_buyer_trust(req.buyer)
-    seller_trust, seller_level, seller_breakdown = trust_engine.compute_seller_trust(req.seller)
-    risk_score, risk_components = risk_engine.compute_risk(
-        buyer_trust=buyer_trust,
-        seller_trust=seller_trust,
-        order_value=req.order_value,
-        is_new_pair=req.is_new_pair,
-        is_new_device=req.is_new_device
-    )
-    decision = decision_engine.decide(risk_score, buyer_trust, seller_trust)
-
-    return FullEvaluationResponse(
-        buyer_trust=buyer_trust,
-        buyer_trust_level=buyer_level,
-        buyer_breakdown=buyer_breakdown,
-        seller_trust=seller_trust,
-        seller_trust_level=seller_level,
-        seller_breakdown=seller_breakdown,
-        risk_score=risk_score,
-        risk_components=risk_components,
-        decision=decision
-    )
+    return run_pipeline(scenarios[scenario])
 
 
 @app.get("/health", tags=["System"])
@@ -357,30 +315,6 @@ def _seller_from_simulator(
     )
 
 
-def _run_pipeline(req: TransactionRequest) -> FullEvaluationResponse:
-    buyer_trust, buyer_level, buyer_breakdown = trust_engine.compute_buyer_trust(req.buyer)
-    seller_trust, seller_level, seller_breakdown = trust_engine.compute_seller_trust(req.seller)
-    risk_score, risk_components = risk_engine.compute_risk(
-        buyer_trust=buyer_trust,
-        seller_trust=seller_trust,
-        order_value=req.order_value,
-        is_new_pair=req.is_new_pair,
-        is_new_device=req.is_new_device,
-    )
-    decision = decision_engine.decide(risk_score, buyer_trust, seller_trust)
-    return FullEvaluationResponse(
-        buyer_trust=buyer_trust,
-        buyer_trust_level=buyer_level,
-        buyer_breakdown=buyer_breakdown,
-        seller_trust=seller_trust,
-        seller_trust_level=seller_level,
-        seller_breakdown=seller_breakdown,
-        risk_score=risk_score,
-        risk_components=risk_components,
-        decision=decision,
-    )
-
-
 class InitiatePaymentBody(BaseModel):
     scenario: Optional[str] = "medium_risk"
 
@@ -400,7 +334,7 @@ class SettleBody(BaseModel):
 def evaluate_risk_contract(scenario: str = "medium_risk"):
     """{ riskLevel, riskScore } — aligns UI gauge with backend."""
     req = _transaction_for_scenario(scenario)
-    full = _run_pipeline(req)
+    full = run_pipeline(req)
     rc = full.decision.risk_classification
     return {"riskLevel": rc, "riskScore": round(full.risk_score, 2)}
 
@@ -487,7 +421,7 @@ def payment_lifecycle_demo(scenario: str = "medium_risk"):
     """Phase timeline: AUTHORIZED → HELD → CAPTURED (demo, mirrors Razorpay-style labels)."""
     if scenario not in SCENARIO_KEYS:
         raise HTTPException(status_code=400, detail="scenario must be low_risk | medium_risk | high_risk")
-    full = _run_pipeline(_transaction_for_scenario(scenario))
+    full = run_pipeline(_transaction_for_scenario(scenario))
     return _payment_lifecycle_payload(full)
 
 
@@ -497,7 +431,7 @@ def initiate_payment_contract(body: InitiatePaymentBody = InitiatePaymentBody())
     scenario = body.scenario or "medium_risk"
     if scenario not in SCENARIO_KEYS:
         raise HTTPException(status_code=400, detail="scenario must be low_risk | medium_risk | high_risk")
-    full = _run_pipeline(_transaction_for_scenario(scenario))
+    full = run_pipeline(_transaction_for_scenario(scenario))
     band = full.decision.risk_classification
     status_map = {"LOW": "CAPTURED", "MEDIUM": "AUTHORIZED", "HIGH": "HELD"}
     lifecycle = _payment_lifecycle_payload(full)
