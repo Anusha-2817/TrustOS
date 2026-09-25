@@ -52,6 +52,26 @@ def test_golden_covers_every_tier():
     assert {g[f"evaluate_product.{s}"]["body"]["decision"] for s in PRODUCT_EVALUATIONS} == {"LOW", "MEDIUM", "HIGH"}
 
 
+def test_fixture_names_match_their_tiers(client):
+    """A fixture named for a tier must score that tier. These names were once off by one (low_risk was MEDIUM,
+    medium_risk HIGH), the same mistake the built-in scenarios had, so this is checked, not just documented.
+    Scores each fixture live (not from the golden file, which is keyed by name and can't see a mislabel)."""
+    by_prefix = {"low_risk": "LOW", "medium_risk": "MEDIUM", "high_risk": "HIGH"}
+    scored = {
+        **{("TRANSACTIONS", n): client.post("/decision/evaluate", json=body).json()["decision"]["risk_classification"]
+           for n, body in TRANSACTIONS.items()},
+        **{("PRODUCT_EVALUATIONS", n): client.post("/evaluate-product", json=body).json()["decision"]
+           for n, body in PRODUCT_EVALUATIONS.items()},
+    }
+    checked = 0
+    for (table, name), tier in scored.items():
+        for prefix, expected in by_prefix.items():
+            if name.startswith(prefix):
+                assert tier == expected, f"{table}[{name!r}] scores {tier}, not {expected}"
+                checked += 1
+    assert checked == 8  # low/medium/high_risk + high_risk_unclamped, in each of the two tables
+
+
 # ─── product_id absent / null / unknown must not change anything ─────────────
 
 

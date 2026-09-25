@@ -1,0 +1,391 @@
+{
+  "verify.no_body": {
+    "status": 200,
+    "body": {
+      "result": "SUCCESS"
+    }
+  },
+  "verify.default": {
+    "status": 200,
+    "body": {
+      "result": "SUCCESS"
+    }
+  },
+  "verify.passed": {
+    "status": 200,
+    "body": {
+      "result": "SUCCESS"
+    }
+  },
+  "verify.failed": {
+    "status": 200,
+    "body": {
+      "result": "FRAUD"
+    }
+  },
+  "verify.inconsistent": {
+    "status": 200,
+    "body": {
+      "result": "INCONSISTENT"
+    }
+  },
+  "verify.inconsistent_and_failed": {
+    "status": 200,
+    "body": {
+      "result": "INCONSISTENT"
+    }
+  },
+  "verify.extra_field_ignored": {
+    "status": 200,
+    "body": {
+      "result": "SUCCESS"
+    }
+  },
+  "verify.bad_type": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "bool_parsing",
+          "loc": [
+            "body",
+            "passed"
+          ],
+          "msg": "Input should be a valid boolean, unable to interpret input",
+          "input": "maybe"
+        }
+      ]
+    }
+  },
+  "settle.no_body": {
+    "status": 200,
+    "body": {
+      "status": "CAPTURED"
+    }
+  },
+  "settle.action['capture']": {
+    "status": 200,
+    "body": {
+      "status": "CAPTURED"
+    }
+  },
+  "settle.action['release']": {
+    "status": 200,
+    "body": {
+      "status": "RELEASED"
+    }
+  },
+  "settle.action['cancel']": {
+    "status": 200,
+    "body": {
+      "status": "CANCELLED"
+    }
+  },
+  "settle.action['CAPTURE']": {
+    "status": 200,
+    "body": {
+      "status": "CAPTURED"
+    }
+  },
+  "settle.action['  Release  ']": {
+    "status": 200,
+    "body": {
+      "status": "RELEASED"
+    }
+  },
+  "settle.invalid_action": {
+    "status": 400,
+    "body": {
+      "detail": "action must be capture | release | cancel"
+    }
+  },
+  "settle.null_action": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "string_type",
+          "loc": [
+            "body",
+            "action"
+          ],
+          "msg": "Input should be a valid string",
+          "input": null
+        }
+      ]
+    }
+  },
+  "settle.empty_body": {
+    "status": 200,
+    "body": {
+      "status": "CAPTURED"
+    }
+  },
+  "initiate_payment.no_body": {
+    "status": 200,
+    "body": {
+      "status": "AUTHORIZED",
+      "lifecycle": {
+        "provider": "Razorpay Simulation",
+        "risk_classification": "MEDIUM",
+        "current_phase": "AUTHORIZED",
+        "phases": [
+          {
+            "id": "authorized",
+            "label": "AUTHORIZED",
+            "description": "Card / UPI authorized; capture delayed",
+            "state": "complete"
+          },
+          {
+            "id": "held",
+            "label": "HELD",
+            "description": "TrustOS escrow — awaiting delivery & window",
+            "state": "active"
+          },
+          {
+            "id": "captured",
+            "label": "CAPTURED",
+            "description": "Released to seller after confirmation / timer",
+            "state": "pending"
+          }
+        ]
+      }
+    }
+  },
+  "initiate_payment.empty_body": {
+    "status": 200,
+    "body": {
+      "status": "AUTHORIZED",
+      "lifecycle": {
+        "provider": "Razorpay Simulation",
+        "risk_classification": "MEDIUM",
+        "current_phase": "AUTHORIZED",
+        "phases": [
+          {
+            "id": "authorized",
+            "label": "AUTHORIZED",
+            "description": "Card / UPI authorized; capture delayed",
+            "state": "complete"
+          },
+          {
+            "id": "held",
+            "label": "HELD",
+            "description": "TrustOS escrow — awaiting delivery & window",
+            "state": "active"
+          },
+          {
+            "id": "captured",
+            "label": "CAPTURED",
+            "description": "Released to seller after confirmation / timer",
+            "state": "pending"
+          }
+        ]
+      }
+    }
+  },
+  "initiate_payment.null_scenario": {
+    "status": 200,
+    "body": {
+      "status": "AUTHORIZED",
+      "lifecycle": {
+        "provider": "Razorpay Simulation",
+        "risk_classification": "MEDIUM",
+        "current_phase": "AUTHORIZED",
+        "phases": [
+          {
+            "id": "authorized",
+            "label": "AUTHORIZED",
+            "description": "Card / UPI authorized; capture delayed",
+            "state": "complete"
+          },
+          {
+            "id": "held",
+            "label": "HELD",
+            "description": "TrustOS escrow — awaiting delivery & window",
+            "state": "active"
+          },
+          {
+            "id": "captured",
+            "label": "CAPTURED",
+            "description": "Released to seller after confirmation / timer",
+            "state": "pending"
+          }
+        ]
+      }
+    }
+  },
+  "initiate_payment.bad_scenario": {
+    "status": 400,
+    "body": {
+      "detail": "scenario must be low_risk | medium_risk | high_risk"
+    }
+  },
+  "initiate_payment.extra_field_ignored": {
+    "status": 200,
+    "body": {
+      "status": "HELD",
+      "lifecycle": {
+        "provider": "Razorpay Simulation",
+        "risk_classification": "HIGH",
+        "current_phase": "HELD",
+        "phases": [
+          {
+            "id": "authorized",
+            "label": "AUTHORIZED",
+            "description": "Authorization recorded",
+            "state": "complete"
+          },
+          {
+            "id": "held",
+            "label": "HELD",
+            "description": "Full hold until verification completes",
+            "state": "active"
+          },
+          {
+            "id": "captured",
+            "label": "CAPTURED",
+            "description": "Only after multi-factor verification",
+            "state": "pending"
+          }
+        ]
+      }
+    }
+  },
+  "simulate.unknown": {
+    "status": 404,
+    "body": {
+      "detail": "Scenario 'nope' not found. Choose: low_risk, medium_risk, high_risk"
+    }
+  },
+  "evaluate_risk.unknown": {
+    "status": 404,
+    "body": {
+      "detail": "Unknown scenario. Use: low_risk, medium_risk, high_risk"
+    }
+  },
+  "payment_lifecycle.unknown": {
+    "status": 400,
+    "body": {
+      "detail": "scenario must be low_risk | medium_risk | high_risk"
+    }
+  },
+  "health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "service": "TrustOS API v1.0.0"
+    }
+  },
+  "decision_evaluate.missing_buyer": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "buyer"
+          ],
+          "msg": "Field required",
+          "input": {
+            "order_value": 100
+          }
+        },
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "seller"
+          ],
+          "msg": "Field required",
+          "input": {
+            "order_value": 100
+          }
+        }
+      ]
+    }
+  },
+  "decision_evaluate.negative_value": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "greater_than",
+          "loc": [
+            "body",
+            "order_value"
+          ],
+          "msg": "Input should be greater than 0",
+          "input": -5,
+          "ctx": {
+            "gt": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "decision_evaluate.total_lt_successful": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "value_error",
+          "loc": [
+            "body",
+            "buyer",
+            "total_orders"
+          ],
+          "msg": "Value error, total_orders must be >= successful_orders",
+          "input": 1,
+          "ctx": {
+            "error": {}
+          }
+        }
+      ]
+    }
+  },
+  "evaluate_product.bad_price": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "greater_than",
+          "loc": [
+            "body",
+            "product_price"
+          ],
+          "msg": "Input should be greater than 0",
+          "input": 0,
+          "ctx": {
+            "gt": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "evaluate_product.missing_name": {
+    "status": 422,
+    "body": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "product_name"
+          ],
+          "msg": "Field required",
+          "input": {
+            "product_price": 2800,
+            "seller_orders": 92,
+            "seller_complaints": 2,
+            "buyer_orders": 48,
+            "buyer_disputes": 1,
+            "review_summary": "Consistently positive reviews; quick delivery.",
+            "is_new_interaction": false,
+            "new_device": false
+          }
+        }
+      ]
+    }
+  }
+}
