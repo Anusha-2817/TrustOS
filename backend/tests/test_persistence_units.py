@@ -95,14 +95,17 @@ def order_id():
 
 def test_order_routes_answer_503_when_persistence_is_off(client, order_id):
     order = {"buyer_id": "b", "seller_id": "s", **TRANSACTIONS["low_risk"]}
+    # /orders is open; the order_id-bearing routes need a key first (which, without a database, can't be checked: also a 503)
     for path, body in (
         ("/orders", order),
         ("/initiate-payment", {"order_id": order_id}),
         ("/verify", {"order_id": order_id}),
         ("/settle", {"order_id": order_id}),
     ):
-        r = client.post(path, json=body)
+        r = client.post(path, json=body, headers={"X-API-Key": "tos_anything"})
         assert r.status_code == 503 and "DATABASE_URL" in r.json()["detail"], path
+        if path != "/orders":
+            assert client.post(path, json=body).status_code == 401, path  # ... and with no key they never get that far
 
 
 def test_stateless_routes_work_with_persistence_off(client):
@@ -113,11 +116,18 @@ def test_stateless_routes_work_with_persistence_off(client):
 
 
 async def test_order_routes_answer_503_when_the_database_is_unreachable(monkeypatch, order_id):
+    import time
+
     import main
+    from services import auth
 
     db.configure("postgresql://postgres@127.0.0.1:9/trustos_dead")
+    # a key verified moments before the outage (cached), so the request gets past authentication to the order logic
+    auth._cache[auth.hash_api_key("tos_cached")] = time.monotonic() + 60
     try:
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url="http://t") as c:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=main.app), base_url="http://t", headers={"X-API-Key": "tos_cached"}
+        ) as c:
             order = {"buyer_id": "b", "seller_id": "s", **TRANSACTIONS["low_risk"]}
             for path, body in (("/orders", order), ("/initiate-payment", {"order_id": order_id}),
                                ("/verify", {"order_id": order_id}), ("/settle", {"order_id": order_id})):

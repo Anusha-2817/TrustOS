@@ -1,32 +1,32 @@
-import asyncio
 import logging
 import os
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from uuid import UUID
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
 from openai import OpenAI
-from sqlalchemy.exc import SQLAlchemyError
+from slowapi.errors import RateLimitExceeded
 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 import db
-from services import order_flow, risk_log
+from services import auth, evaluation, order_flow, order_service, rate_limit, risk_log
 from services.trust_engine import TrustEngine
 from services.risk_engine import RiskEngine
 from services.decision_engine import escalate_tier
 from services.payment_engine import call_llm
 from services.pipeline import run_pipeline
 from services.product_risk import assess_product
+from routes.v1 import router as v1_router
 from models import (
     BuyerProfile, SellerProfile, TransactionRequest,
     TrustScoreResponse, RiskScoreResponse, DecisionModel,
@@ -57,13 +57,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS: explicit origins and NO credentials. (It used to be allow_origins=["*"] with allow_credentials=True, which
+# browsers reject and which, echoed back by Starlette, would let any site make credentialed requests.) Auth is
+# the X-API-Key header, not cookies, so credentials are not needed. Server-to-server callers (a payment
+# gateway) are not subject to CORS at all. Override with CORS_ALLOW_ORIGINS="https://a.example,https://b.example".
+_DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
+CORS_ORIGINS = [o.strip() for o in (os.environ.get("CORS_ALLOW_ORIGINS") or _DEFAULT_CORS_ORIGINS).split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "X-API-Key", "Idempotency-Key"],
+    # so browser code can read them (Retry-After on a 429, whether a response was a replay)
+    expose_headers=["Retry-After", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Idempotent-Replayed"],
 )
+
+app.state.limiter = rate_limit.limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit.rate_limit_exceeded_handler)
 
 trust_engine = TrustEngine()
 risk_engine = RiskEngine()
@@ -115,10 +127,12 @@ def compute_seller_trust(profile: SellerProfile):
     response_model=EvaluateProductResponse,
     tags=["Risk Engine"],
 )
-async def evaluate_product(body: EvaluateProductRequest):
+@rate_limit.limiter.shared_limit(rate_limit.evaluate_product, scope=rate_limit.SCOPE_EVALUATE_PRODUCT, key_func=rate_limit.ip_key)
+async def evaluate_product(request: Request, response: Response, body: EvaluateProductRequest):
     """Product context: trust scores, risk breakdown, clamped final risk, LOW|MEDIUM|HIGH.
 
-    Writes the decision (and the raw LLM output) to risk_decision_log; a database problem never changes the response."""
+    Writes the decision (and the raw LLM output) to risk_decision_log; a database problem never changes the response.
+    Rate limited per IP (every call is a paid LLM request): 10/minute by default."""
     # The scoring does blocking work (the OpenAI call, and the ML fit on the first catalogue product), so it
     # runs in the threadpool exactly as it did when this route was a plain ``def``.
     response, llm_output = await run_in_threadpool(_evaluate_product, body)
@@ -236,29 +250,10 @@ async def evaluate_transaction(request: TransactionRequest):
     Returns trust scores, risk score, risk classification, and enforcement actions.
     The decision is written to risk_decision_log; a database problem never changes the response.
     """
-    full = await run_in_threadpool(run_pipeline, request)
-    await risk_log.log_decision_fail_open(
-        lambda: risk_log.pipeline_record("decision_evaluate", request, full), source="decision_evaluate"
-    )
-    return full
+    return await evaluation.evaluate_and_log(request)
 
 
 # ─── Orders (persisted) ─────────────────────────────────────────────────────
-
-
-@asynccontextmanager
-async def _order_transaction():
-    """One transaction for the order-aware routes. They FAIL CLOSED: an unconfigured or unreachable
-    database is a 503, never a response that pretends something was recorded. (HTTPExceptions raised
-    inside the block — 404, 409 — pass through and roll the transaction back.)"""
-    if not db.is_configured():
-        raise HTTPException(status_code=503, detail="Persistence is not configured (DATABASE_URL is not set)")
-    try:
-        async with db.transaction() as conn:
-            yield conn
-    except (SQLAlchemyError, OSError, asyncio.TimeoutError):
-        logger.exception("order-mode database error")
-        raise HTTPException(status_code=503, detail="Database unavailable; nothing was recorded")
 
 
 @app.post("/orders", response_model=OrderResponse, status_code=201, tags=["Orders"])
@@ -267,34 +262,9 @@ async def create_order(body: CreateOrderRequest):
     denormalised risk_score / risk_tier are written in ONE transaction: if any part fails there is no order.
     Follow up with /initiate-payment, /verify and /settle passing the returned order_id."""
     full = await run_in_threadpool(run_pipeline, body)
-    async with _order_transaction() as conn:
-        order = await db.create_order(
-            conn,
-            buyer_id=body.buyer_id,
-            seller_id=body.seller_id,
-            product_id=body.product_id,
-            amount=db.money(body.order_value),
-            currency="INR",
-            risk_score=db.money(full.risk_score),
-            risk_tier=full.decision.risk_classification,
-        )
-        await db.insert_risk_decision(
-            conn,
-            risk_log.pipeline_record(
-                "orders_create", body, full, order_id=order["order_id"], buyer_id=body.buyer_id, seller_id=body.seller_id
-            ),
-        )
-    return OrderResponse(
-        order_id=order["order_id"],
-        status=order["status"],
-        buyer_id=order["buyer_id"],
-        seller_id=order["seller_id"],
-        product_id=order["product_id"],
-        amount=float(order["amount"]),
-        currency=order["currency"],
-        created_at=order["created_at"],
-        evaluation=full,
-    )
+    async with order_service.order_transaction() as conn:
+        order = await order_service.create_order(conn, body, full)
+    return order_service.order_response(order, full)
 
 
 # ─── Simulation Endpoint ─────────────────────────────────────────────────────
@@ -513,25 +483,23 @@ def payment_lifecycle_demo(scenario: str = "medium_risk"):
     return _payment_lifecycle_payload(full)
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _get_order_or_404(order: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    if order is None:
-        raise HTTPException(status_code=404, detail="order not found")
-    return order
+async def _require_key_for_order_mode(request: Request) -> None:
+    """The legacy stateless demo (no order_id) stays open, but touching a stored order needs a valid X-API-Key,
+    exactly as on /v1. The header is read straight off the request, not declared as a parameter, so the legacy
+    OpenAPI operations keep their pinned shape (the requirement is stated in their description instead)."""
+    await auth.require_api_key(request, request.headers.get(auth.HEADER))
 
 
 @app.post("/initiate-payment", tags=["Demo Contract"])
-async def initiate_payment_contract(body: InitiatePaymentBody = InitiatePaymentBody()):
+async def initiate_payment_contract(request: Request, body: InitiatePaymentBody = InitiatePaymentBody()):
     """{ status, lifecycle } — gateway simulation for UI.
 
     Without order_id: the stateless demo (runs the scenario, logs the decision to risk_decision_log with
     order_id NULL, fail-open). With order_id: starts the payment of that order under the decision recorded
     when it was created (no re-evaluation, so no new log row) and persists payment + a PENDING verification.
-    Order mode fails closed (503) and adds order_id / payment_id / verification_id to the response."""
+    Order mode needs an X-API-Key, fails closed (503) and adds order_id / payment_id / verification_id to the response."""
     if body.order_id is not None:
+        await _require_key_for_order_mode(request)
         return await _initiate_payment_for_order(body.order_id)
     scenario = body.scenario or "medium_risk"
     if scenario not in SCENARIO_KEYS:
@@ -550,46 +518,23 @@ async def initiate_payment_contract(body: InitiatePaymentBody = InitiatePaymentB
 
 
 async def _initiate_payment_for_order(order_id: UUID) -> Dict[str, Any]:
-    async with _order_transaction() as conn:
-        # Row lock: two simultaneous initiations of one order serialise, and the second sees it is no longer CREATED.
-        order = _get_order_or_404(await db.get_order(conn, order_id, for_update=True))
-        if order["status"] != "CREATED":
-            raise HTTPException(status_code=409, detail=f"order is {order['status']}; a payment was already initiated")
-        tier = order["risk_tier"]
-        if tier is None:
-            raise HTTPException(status_code=409, detail="order has no recorded risk decision")
-        status = order_flow.INITIAL_PAYMENT_STATUS[tier]
-        now = _now()
-        payment = await db.create_payment(
-            conn,
-            order_id=order_id,
-            route=order_flow.PAYMENT_ROUTE[tier],
-            status=status,
-            triggered_by="AUTO",  # tier policy, not a request-level action
-            amount=order["amount"],
-            currency=order["currency"],
-            authorized_at=now,
-            settled_at=now if status == "CAPTURED" else None,
-        )
-        verification = await db.create_verification(
-            conn, order_id=order_id, type=order_flow.verification_type_for_tier(tier)
-        )
-        await db.set_order_status(conn, order_id, order_flow.order_status_for_payment(status))
+    async with order_service.order_transaction() as conn:
+        started = await order_service.initiate_payment(conn, order_id)
     return {
-        "status": status,
-        "lifecycle": _lifecycle_for_band(tier),
+        "status": started["payment"]["status"],
+        "lifecycle": _lifecycle_for_band(started["tier"]),
         "order_id": order_id,
-        "payment_id": payment["payment_id"],
-        "verification_id": verification["verification_id"],
+        "payment_id": started["payment"]["payment_id"],
+        "verification_id": started["verification"]["verification_id"],
     }
 
 
 @app.post("/verify", tags=["Demo Contract"])
-async def verify_contract(body: VerifyBody = VerifyBody()):
+async def verify_contract(request: Request, body: VerifyBody = VerifyBody()):
     """{ result: SUCCESS | FRAUD | INCONSISTENT } — demo toggles.
 
     With order_id the result is recorded: it completes the order's PENDING verification (or adds a completed
-    one for a retry). Order mode fails closed and adds order_id / verification_id to the response."""
+    one for a retry). Order mode needs an X-API-Key, fails closed and adds order_id / verification_id to the response."""
     if body.inconsistent:
         result = "INCONSISTENT"
     elif body.passed:
@@ -598,32 +543,24 @@ async def verify_contract(body: VerifyBody = VerifyBody()):
         result = "FRAUD"
     if body.order_id is None:
         return {"result": result}
+    await _require_key_for_order_mode(request)
 
-    async with _order_transaction() as conn:
-        order = _get_order_or_404(await db.get_order(conn, body.order_id, for_update=True))
-        if order["status"] in ("CREATED", "CANCELLED"):
-            raise HTTPException(status_code=409, detail=f"order is {order['status']}; nothing to verify")
-        pending = await db.get_latest_pending_verification(conn, body.order_id)
-        if pending is not None:
-            verification = await db.complete_verification(conn, pending["verification_id"], result=result)
-        else:
-            verification = await db.create_verification(
-                conn,
-                order_id=body.order_id,
-                type=order_flow.verification_type_for_tier(order["risk_tier"]),
-                result=result,
-                completed_at=_now(),
-            )
+    async with order_service.order_transaction() as conn:
+        recorded = await order_service.record_verification(conn, body.order_id, result)
+    verification = recorded["verification"]
     return {"result": result, "order_id": body.order_id, "verification_id": verification["verification_id"]}
 
 
 @app.post("/settle", tags=["Demo Contract"])
-async def settle_contract(body: SettleBody = SettleBody()):
+async def settle_contract(request: Request, body: SettleBody = SettleBody()):
     """{ status: CAPTURED | RELEASED | CANCELLED } — demo toggles.
 
     With order_id it moves that order's payment (AUTHORIZED → CAPTURED / CANCELLED, HELD → RELEASED /
-    CANCELLED; anything else is a 409) and the order's status follows. Order mode fails closed and adds
-    order_id / payment_id to the response."""
+    CANCELLED; anything else is a 409) and the order's status follows. A capture or release also needs the
+    order's latest verification to be SUCCESS (409 otherwise), as on /v1. Order mode needs an X-API-Key, fails
+    closed and adds order_id / payment_id to the response."""
+    if body.order_id is not None:
+        await _require_key_for_order_mode(request)  # before anything else, so an anonymous caller learns nothing
     action = (body.action or "capture").lower().strip()
     if action not in order_flow.SETTLE_ACTION_STATUS:
         raise HTTPException(status_code=400, detail="action must be capture | release | cancel")
@@ -631,16 +568,46 @@ async def settle_contract(body: SettleBody = SettleBody()):
     if body.order_id is None:
         return {"status": target}
 
-    async with _order_transaction() as conn:
-        _get_order_or_404(await db.get_order(conn, body.order_id, for_update=True))
-        payment = await db.get_latest_payment(conn, body.order_id, for_update=True)
-        if payment is None:
-            raise HTTPException(status_code=409, detail="no payment has been initiated for this order")
-        if (payment["status"], target) not in order_flow.ALLOWED_SETTLEMENTS:
-            raise HTTPException(status_code=409, detail=f"cannot {action} a payment that is {payment['status']}")
-        await db.update_payment_status(conn, payment["payment_id"], status=target, triggered_by="MANUAL", settled_at=_now())
-        await db.set_order_status(conn, body.order_id, order_flow.order_status_for_payment(target))
+    async with order_service.order_transaction() as conn:
+        settled = await order_service.settle_payment(conn, body.order_id, action)
+    payment = settled["payment"]
     return {"status": target, "order_id": body.order_id, "payment_id": payment["payment_id"]}
+
+
+# ─── /v1 (the public API) and the "legacy" note ─────────────────────────────────────────────────
+
+app.include_router(v1_router)
+
+# Every unversioned route below predates /v1 and stays exactly as it is for the demo frontend. Say so in
+# their OpenAPI descriptions so nobody integrates against them by accident. (/health is ops, not legacy.)
+_LEGACY_NOTE = (
+    "\n\n**Deprecated for external use — kept for the demo frontend.** Integrate against the versioned, "
+    "authenticated `/v1` API instead. This route needs no API key and is not covered by the `/v1` guarantees."
+)
+_LEGACY_ORDER_NOTE = (
+    " With an `order_id` this route requires the `X-API-Key` header (the stateless demo without `order_id` stays open), "
+    "but it still does NOT enforce the other `/v1` rules (no `Idempotency-Key`). `/settle` with an `order_id` applies "
+    "the same verification rule as `/v1`: a capture or a release is a 409 unless the latest verification is SUCCESS."
+)
+_LEGACY_ORDERS_NOTE = (
+    " It is unauthenticated, creates a stored order, and does NOT enforce the `/v1` rules (no `Idempotency-Key`); "
+    "such an order can only be moved on with an API key."
+)
+_LEGACY_PATHS = frozenset(
+    {
+        "/trust/buyer", "/trust/seller", "/evaluate-product", "/risk/score", "/simulator/evaluate",
+        "/decision/evaluate", "/orders", "/simulate/{scenario}", "/evaluate-risk", "/demo/payment-lifecycle",
+        "/initiate-payment", "/verify", "/settle",
+    }
+)
+_LEGACY_ORDER_PATHS = frozenset({"/initiate-payment", "/verify", "/settle"})
+for _route in app.routes:
+    if isinstance(_route, APIRoute) and _route.path in _LEGACY_PATHS:
+        _route.description = (
+            (_route.description or "")
+            + _LEGACY_NOTE
+            + (_LEGACY_ORDER_NOTE if _route.path in _LEGACY_ORDER_PATHS else _LEGACY_ORDERS_NOTE if _route.path == "/orders" else "")
+        )
 
 
 if __name__ == "__main__":

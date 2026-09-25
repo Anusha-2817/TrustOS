@@ -31,6 +31,13 @@ ALLOWED_SETTLEMENTS = frozenset(
     }
 )
 
+# Settlements that pay the seller on the strength of the buyer-side check, and so need the order's latest
+# verification to be SUCCESS: a capture (MEDIUM) and the release of a wallet hold (HIGH). Cancel is not gated
+# (it returns the money). Applies to /v1 and to the legacy /settle with an order_id alike (order_service.settle_payment);
+# before this, the legacy route never looked at the verification result, so a FRAUD order could be paid out there.
+SETTLEMENT_REQUIRES_VERIFIED = frozenset({"CAPTURED", "RELEASED"})
+VERIFICATION_PASSED = "SUCCESS"
+
 _PAYMENT_TO_ORDER_STATUS = {
     "AUTHORIZED": "ACTIVE",
     "HELD": "ACTIVE",

@@ -27,13 +27,14 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
-from db_schema import orders, payments, risk_decision_log, verifications
+from db_schema import api_keys, idempotency_keys, orders, payments, risk_decision_log, verifications
 
 
 class DatabaseNotConfigured(RuntimeError):
@@ -308,6 +309,27 @@ async def complete_verification(
     return _row(res.one())
 
 
+async def get_latest_verification(conn: AsyncConnection, order_id: uuid.UUID) -> Optional[Dict[str, Any]]:
+    """The most recently requested verification, whatever its result (a retry is a newer row)."""
+    stmt = (
+        sa.select(verifications)
+        .where(verifications.c.order_id == order_id)
+        .order_by(verifications.c.requested_at.desc(), verifications.c.created_at.desc())
+        .limit(1)
+    )
+    return _row((await conn.execute(stmt)).one_or_none())
+
+
+async def list_verifications(conn: AsyncConnection, order_id: uuid.UUID) -> List[Dict[str, Any]]:
+    """Every verification of the order, oldest first."""
+    stmt = (
+        sa.select(verifications)
+        .where(verifications.c.order_id == order_id)
+        .order_by(verifications.c.requested_at.asc(), verifications.c.created_at.asc())
+    )
+    return [dict(r._mapping) for r in (await conn.execute(stmt)).all()]
+
+
 # ─── risk_decision_log (append-only) ─────────────────────────────────────────────────────────────
 
 
@@ -315,3 +337,100 @@ async def insert_risk_decision(conn: AsyncConnection, record: Dict[str, Any]) ->
     """Append one decision (see services/risk_log.py for how a record is built). Returns its id."""
     result = await conn.execute(sa.insert(risk_decision_log).values(**record).returning(risk_decision_log.c.id))
     return result.scalar_one()
+
+
+# ─── api_keys ────────────────────────────────────────────────────────────────────────────────────
+
+
+async def create_api_key(conn: AsyncConnection, *, key_hash: str, label: str) -> Dict[str, Any]:
+    result = await conn.execute(sa.insert(api_keys).values(key_hash=key_hash, label=label).returning(*api_keys.c))
+    return _row(result.one())
+
+
+async def get_api_key(conn: AsyncConnection, key_hash: str) -> Optional[Dict[str, Any]]:
+    return _row((await conn.execute(sa.select(api_keys).where(api_keys.c.key_hash == key_hash))).one_or_none())
+
+
+async def list_api_keys(conn: AsyncConnection) -> List[Dict[str, Any]]:
+    return [dict(r._mapping) for r in (await conn.execute(sa.select(api_keys).order_by(api_keys.c.created_at))).all()]
+
+
+async def revoke_api_key(conn: AsyncConnection, key_hash: str) -> bool:
+    """True if a live key was revoked; False if it does not exist or was already revoked."""
+    result = await conn.execute(
+        sa.update(api_keys)
+        .where(api_keys.c.key_hash == key_hash, api_keys.c.revoked_at.is_(None))
+        .values(revoked_at=sa.func.now())
+    )
+    return result.rowcount == 1
+
+
+# ─── idempotency_keys ────────────────────────────────────────────────────────────────────────────
+
+
+async def lock_idempotency_key(conn: AsyncConnection, scope: str, key: str) -> None:
+    """Serialise every request that uses this (scope, key) until this transaction ends. A duplicate that
+    arrives while the first is still working waits here, then finds the stored response instead of doing
+    the work twice. (The lock is on a hash of the pair; a collision only makes two keys wait for each other.)"""
+    await conn.execute(sa.select(sa.func.pg_advisory_xact_lock(sa.func.hashtextextended(scope + ":" + key, 0))))
+
+
+async def get_idempotency_key(conn: AsyncConnection, scope: str, key: str) -> Optional[Dict[str, Any]]:
+    """The stored response for (scope, key), or None if there is none or it has expired."""
+    stmt = sa.select(idempotency_keys).where(
+        idempotency_keys.c.scope == scope, idempotency_keys.c.key == key, idempotency_keys.c.expires_at > sa.func.now()
+    )
+    return _row((await conn.execute(stmt)).one_or_none())
+
+
+async def purge_expired_idempotency_keys(conn: AsyncConnection, limit: int = 100) -> int:
+    """Delete up to ``limit`` expired rows (oldest first, via the expires_at index). SKIP LOCKED so this never
+    waits on a row another request is replacing, which would otherwise be a deadlock waiting to happen."""
+    result = await conn.execute(
+        sa.text(
+            "DELETE FROM idempotency_keys WHERE (scope, key) IN ("
+            " SELECT scope, key FROM idempotency_keys WHERE expires_at < now()"
+            " ORDER BY expires_at LIMIT :n FOR UPDATE SKIP LOCKED)"
+        ),
+        {"n": limit},
+    )
+    return result.rowcount
+
+
+async def store_idempotency_key(
+    conn: AsyncConnection,
+    *,
+    scope: str,
+    key: str,
+    request_hash: str,
+    response_status: int,
+    response_body: Dict[str, Any],
+    order_id: Optional[uuid.UUID],
+    ttl_seconds: int,
+) -> None:
+    """Record the response for (scope, key). Call after lock_idempotency_key found no live row: an expired row
+    left in the way is replaced. Raises RuntimeError if a live row exists (the lock makes that a bug)."""
+    stmt = pg_insert(idempotency_keys).values(
+        scope=scope,
+        key=key,
+        request_hash=request_hash,
+        response_status=response_status,
+        response_body=response_body,
+        order_id=order_id,
+        expires_at=sa.func.now() + sa.func.make_interval(0, 0, 0, 0, 0, 0, ttl_seconds),
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[idempotency_keys.c.scope, idempotency_keys.c.key],
+        set_={
+            "request_hash": stmt.excluded.request_hash,
+            "response_status": stmt.excluded.response_status,
+            "response_body": stmt.excluded.response_body,
+            "order_id": stmt.excluded.order_id,
+            "created_at": sa.func.now(),
+            "expires_at": stmt.excluded.expires_at,
+        },
+        where=idempotency_keys.c.expires_at <= sa.func.now(),
+    )
+    result = await conn.execute(stmt)
+    if result.rowcount != 1:
+        raise RuntimeError("a live idempotency row already exists for this (scope, key); lock_idempotency_key was skipped")

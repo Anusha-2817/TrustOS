@@ -1,0 +1,1986 @@
+{
+  "no_db": {
+    "initiate": {
+      "body": {
+        "detail": "Persistence is not configured (DATABASE_URL is not set)"
+      },
+      "status": 503
+    },
+    "orders": {
+      "body": {
+        "detail": "Persistence is not configured (DATABASE_URL is not set)"
+      },
+      "status": 503
+    },
+    "settle": {
+      "body": {
+        "detail": "Persistence is not configured (DATABASE_URL is not set)"
+      },
+      "status": 503
+    },
+    "verify": {
+      "body": {
+        "detail": "Persistence is not configured (DATABASE_URL is not set)"
+      },
+      "status": 503
+    }
+  },
+  "openapi": {
+    "/decision/evaluate": {
+      "post": {
+        "operationId": "evaluate_transaction_decision_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullEvaluationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Decision Engine"
+        ]
+      }
+    },
+    "/demo/payment-lifecycle": {
+      "get": {
+        "operationId": "payment_lifecycle_demo_demo_payment_lifecycle_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scenario",
+            "required": false,
+            "schema": {
+              "default": "medium_risk",
+              "title": "Scenario",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Demo Contract"
+        ]
+      }
+    },
+    "/evaluate-product": {
+      "post": {
+        "operationId": "evaluate_product_evaluate_product_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateProductRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluateProductResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Risk Engine"
+        ]
+      }
+    },
+    "/evaluate-risk": {
+      "get": {
+        "operationId": "evaluate_risk_contract_evaluate_risk_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scenario",
+            "required": false,
+            "schema": {
+              "default": "medium_risk",
+              "title": "Scenario",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Demo Contract"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/initiate-payment": {
+      "post": {
+        "operationId": "initiate_payment_contract_initiate_payment_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitiatePaymentBody",
+                "default": {
+                  "scenario": "medium_risk"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Demo Contract"
+        ]
+      }
+    },
+    "/orders": {
+      "post": {
+        "operationId": "create_order_orders_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/risk/score": {
+      "post": {
+        "operationId": "compute_risk_score_risk_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskScoreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Risk Engine"
+        ]
+      }
+    },
+    "/settle": {
+      "post": {
+        "operationId": "settle_contract_settle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettleBody",
+                "default": {
+                  "action": "capture"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Demo Contract"
+        ]
+      }
+    },
+    "/simulate/{scenario}": {
+      "get": {
+        "operationId": "simulate_scenario_simulate__scenario__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario",
+            "required": true,
+            "schema": {
+              "title": "Scenario",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Demo"
+        ]
+      }
+    },
+    "/simulator/evaluate": {
+      "post": {
+        "operationId": "evaluate_simulator_simulator_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulatorEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullEvaluationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Simulator"
+        ]
+      }
+    },
+    "/trust/buyer": {
+      "post": {
+        "operationId": "compute_buyer_trust_trust_buyer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyerProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustScoreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Trust Engine"
+        ]
+      }
+    },
+    "/trust/seller": {
+      "post": {
+        "operationId": "compute_seller_trust_trust_seller_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustScoreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Trust Engine"
+        ]
+      }
+    },
+    "/verify": {
+      "post": {
+        "operationId": "verify_contract_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyBody",
+                "default": {
+                  "inconsistent": false,
+                  "passed": true
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "tags": [
+          "Demo Contract"
+        ]
+      }
+    }
+  },
+  "order_mode": {
+    "db.orders": [
+      {
+        "amount": "900.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": null,
+        "risk_score": "25.00",
+        "risk_tier": "LOW",
+        "seller_id": "seller-9",
+        "status": "COMPLETED"
+      },
+      {
+        "amount": "1500.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": null,
+        "risk_score": "44.02",
+        "risk_tier": "MEDIUM",
+        "seller_id": "seller-9",
+        "status": "COMPLETED"
+      },
+      {
+        "amount": "1500.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": null,
+        "risk_score": "44.02",
+        "risk_tier": "MEDIUM",
+        "seller_id": "seller-9",
+        "status": "COMPLETED"
+      },
+      {
+        "amount": "1500.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": null,
+        "risk_score": "44.02",
+        "risk_tier": "MEDIUM",
+        "seller_id": "seller-9",
+        "status": "CANCELLED"
+      },
+      {
+        "amount": "12000.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": null,
+        "risk_score": "100.00",
+        "risk_tier": "HIGH",
+        "seller_id": "seller-9",
+        "status": "COMPLETED"
+      },
+      {
+        "amount": "900.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": "B0BYYPTLHX",
+        "risk_score": "25.00",
+        "risk_tier": "MEDIUM",
+        "seller_id": "seller-9",
+        "status": "ACTIVE"
+      },
+      {
+        "amount": "900.00",
+        "buyer_id": "buyer-1",
+        "currency": "INR",
+        "product_id": "NOT-IN-CATALOGUE",
+        "risk_score": "25.00",
+        "risk_tier": "LOW",
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      }
+    ],
+    "db.payments": [
+      {
+        "amount": "1500.00",
+        "authorized": true,
+        "provider": "razorpay_simulation",
+        "route": "AUTHORIZE_ONLY",
+        "settled": true,
+        "status": "CAPTURED",
+        "triggered_by": "MANUAL"
+      },
+      {
+        "amount": "1500.00",
+        "authorized": true,
+        "provider": "razorpay_simulation",
+        "route": "AUTHORIZE_ONLY",
+        "settled": true,
+        "status": "CAPTURED",
+        "triggered_by": "MANUAL"
+      },
+      {
+        "amount": "1500.00",
+        "authorized": true,
+        "provider": "razorpay_simulation",
+        "route": "AUTHORIZE_ONLY",
+        "settled": true,
+        "status": "CANCELLED",
+        "triggered_by": "MANUAL"
+      },
+      {
+        "amount": "12000.00",
+        "authorized": true,
+        "provider": "razorpay_simulation",
+        "route": "WALLET_HOLD",
+        "settled": true,
+        "status": "RELEASED",
+        "triggered_by": "MANUAL"
+      },
+      {
+        "amount": "900.00",
+        "authorized": true,
+        "provider": "razorpay_simulation",
+        "route": "DIRECT_CAPTURE",
+        "settled": true,
+        "status": "CAPTURED",
+        "triggered_by": "AUTO"
+      },
+      {
+        "amount": "900.00",
+        "authorized": true,
+        "provider": "razorpay_simulation",
+        "route": "AUTHORIZE_ONLY",
+        "settled": false,
+        "status": "AUTHORIZED",
+        "triggered_by": "AUTO"
+      }
+    ],
+    "db.risk_log": [
+      {
+        "escalated_from": null,
+        "final_tier": "LOW",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      },
+      {
+        "escalated_from": null,
+        "final_tier": "MEDIUM",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      },
+      {
+        "escalated_from": null,
+        "final_tier": "MEDIUM",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      },
+      {
+        "escalated_from": null,
+        "final_tier": "MEDIUM",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      },
+      {
+        "escalated_from": null,
+        "final_tier": "HIGH",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      },
+      {
+        "escalated_from": "LOW",
+        "final_tier": "MEDIUM",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      },
+      {
+        "escalated_from": null,
+        "final_tier": "LOW",
+        "formula": "static_v1",
+        "has_order": true,
+        "source": "orders_create"
+      }
+    ],
+    "db.verifications": [
+      {
+        "completed": true,
+        "result": "SUCCESS",
+        "type": "USER_CONFIRMATION"
+      },
+      {
+        "completed": true,
+        "result": "FRAUD",
+        "type": "USER_CONFIRMATION"
+      },
+      {
+        "completed": true,
+        "result": "INCONSISTENT",
+        "type": "USER_CONFIRMATION"
+      },
+      {
+        "completed": true,
+        "result": "FRAUD",
+        "type": "USER_CONFIRMATION"
+      },
+      {
+        "completed": false,
+        "result": "PENDING",
+        "type": "USER_CONFIRMATION"
+      },
+      {
+        "completed": true,
+        "result": "INCONSISTENT",
+        "type": "MANDATORY_VIDEO"
+      },
+      {
+        "completed": true,
+        "result": "SUCCESS",
+        "type": "PASSIVE"
+      },
+      {
+        "completed": false,
+        "result": "PENDING",
+        "type": "USER_CONFIRMATION"
+      }
+    ],
+    "escalated": {
+      "body": {
+        "amount": 900.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 100.0,
+            "dispute_penalty": 0.0,
+            "dispute_rate_percent": 0.0,
+            "fraud_penalty": 0.0,
+            "order_bonus": 400.0,
+            "raw_score": 440.0,
+            "tier": {
+              "label": "Highly Trusted",
+              "level": 3,
+              "unlocks": [
+                "Instant settlement",
+                "Almost never challenged"
+              ]
+            }
+          },
+          "buyer_trust": 100.0,
+          "buyer_trust_level": "High",
+          "decision": {
+            "delivery_control": "Flexible — unattended drop allowed",
+            "enforcement_actions": [
+              "Authorize payment (block funds at gateway)",
+              "Do NOT capture immediately",
+              "Await user delivery confirmation tap",
+              "Start 2–6 hour window after confirmation",
+              "CASE correct: send CAPTURE → seller",
+              "CASE wrong item: block capture, flag seller",
+              "CASE dislike (subjective): capture proceeds, log soft complaint",
+              "CASE timeout: auto-CAPTURE → seller",
+              "Update trust & risk models"
+            ],
+            "escalated_from": "LOW",
+            "killer_line": "We don't control the transaction.. we control the moment of settlement.",
+            "money_flow": "Day 0: Buyer → AUTH → Gateway (money blocked, not with seller).\nAfter delivery + confirmation: IF OK → CAPTURE → Seller | IF Wrong → CANCEL → Buyer | IF Dislike → CAPTURE → Seller.",
+            "payment_action": "Authorization only — capture DELAYED",
+            "risk_classification": "MEDIUM",
+            "risk_range": "31–60",
+            "safety_window": "2–6 hours after user confirms delivery",
+            "settlement_mechanism": "Capture on user confirmation OR timeout (2–6 hrs)",
+            "trustos_role": "Light control — delays settlement, not payment",
+            "verification_type": "User-triggered: tap 'I received my order'"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 40.0,
+            "context_risk": 0.0,
+            "interaction_risk": 0.0,
+            "product_risk": {
+              "applicable": true,
+              "imputed_features": [],
+              "level": "HIGH",
+              "product_id": "B0BYYPTLHX",
+              "reason": null,
+              "score": 100.0,
+              "top_features": [
+                {
+                  "contribution": 0.0557,
+                  "direction": "low",
+                  "feature": "verified_review_ratio",
+                  "share": 0.326,
+                  "typical": 1.0,
+                  "value": 0.0
+                },
+                {
+                  "contribution": 0.0379,
+                  "direction": "low",
+                  "feature": "rating_avg",
+                  "share": 0.222,
+                  "typical": 4.4,
+                  "value": 1.0
+                },
+                {
+                  "contribution": 0.0236,
+                  "direction": "low",
+                  "feature": "listing_age_days",
+                  "share": 0.138,
+                  "typical": 1980.0,
+                  "value": 172.0
+                }
+              ]
+            },
+            "seller_trust_reduction": 40.0,
+            "transaction_risk_total": 5.0,
+            "value_risk": 5.0
+          },
+          "risk_score": 25.0,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 100.0,
+            "complaint_penalty": 1.98,
+            "complaint_rate_percent": 0.99,
+            "fraud_penalty": 0.0,
+            "order_bonus": 600.0,
+            "raw_score": 648.02,
+            "tier": {
+              "label": "Highly Trusted Seller",
+              "level": 3,
+              "note": "Complaint rate < 3%"
+            }
+          },
+          "seller_trust": 100.0,
+          "seller_trust_level": "High"
+        },
+        "order_id": "<uuid-1>",
+        "product_id": "B0BYYPTLHX",
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    },
+    "escalated.initiate": {
+      "body": {
+        "lifecycle": {
+          "current_phase": "AUTHORIZED",
+          "phases": [
+            {
+              "description": "Card / UPI authorized; capture delayed",
+              "id": "authorized",
+              "label": "AUTHORIZED",
+              "state": "complete"
+            },
+            {
+              "description": "TrustOS escrow — awaiting delivery & window",
+              "id": "held",
+              "label": "HELD",
+              "state": "active"
+            },
+            {
+              "description": "Released to seller after confirmation / timer",
+              "id": "captured",
+              "label": "CAPTURED",
+              "state": "pending"
+            }
+          ],
+          "provider": "Razorpay Simulation",
+          "risk_classification": "MEDIUM"
+        },
+        "order_id": "<uuid-1>",
+        "payment_id": "<uuid-2>",
+        "status": "AUTHORIZED",
+        "verification_id": "<uuid-3>"
+      },
+      "status": 200
+    },
+    "ghost/initiate-payment": {
+      "body": {
+        "detail": "order not found"
+      },
+      "status": 404
+    },
+    "ghost/settle": {
+      "body": {
+        "detail": "order not found"
+      },
+      "status": 404
+    },
+    "ghost/verify": {
+      "body": {
+        "detail": "order not found"
+      },
+      "status": 404
+    },
+    "high": {
+      "body": {
+        "amount": 12000.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 0.0,
+            "dispute_penalty": 75.0,
+            "dispute_rate_percent": 50.0,
+            "fraud_penalty": 0.0,
+            "order_bonus": 2.0,
+            "raw_score": -33.0,
+            "tier": {
+              "label": "Unknown",
+              "level": 0,
+              "unlocks": [
+                "Medium checks applied"
+              ]
+            }
+          },
+          "buyer_trust": 0.0,
+          "buyer_trust_level": "Low",
+          "decision": {
+            "delivery_control": "Controlled delivery — OTP required, no unattended drop",
+            "enforcement_actions": [
+              "Route payment: Buyer → Wallet (e.g. Paytm) — seller gets ₹0 initially",
+              "TrustOS holds release authority over wallet",
+              "Enforce attended delivery with OTP-based handoff",
+              "Require seller to attach QR seal + pack properly",
+              "Trigger guided unboxing: sealed package → QR/seal → continuous opening → product inside",
+              "No cuts allowed in verification video",
+              "CASE correct + video consistent: RELEASE wallet → seller",
+              "CASE wrong item / scam: DO NOT release — seller gets ₹0, buyer refunded",
+              "CASE buyer attempts cheat: check seal continuity + video consistency + history; reject claim",
+              "CASE no video in window (15–30 min): auto-release",
+              "Heavy trust penalty applied to fraudulent party"
+            ],
+            "killer_line": "Money doesn't move until trust is proven !",
+            "money_flow": "Step 1: Buyer → Wallet (money held, seller gets ₹0).\nStep 2: Delivery + Verification.\nIF OK → Wallet → Seller (RELEASE).\nIF Fraud → Wallet → Buyer (no release to seller).",
+            "payment_action": "Funds routed to wallet holding layer (NOT to seller)",
+            "risk_classification": "HIGH",
+            "risk_range": "61–100",
+            "safety_window": "15–30 minute strict window post-delivery",
+            "settlement_mechanism": "RELEASE wallet → seller only after verified delivery",
+            "trustos_role": "Full control — takes over payment path and verification",
+            "verification_type": "Mandatory guided unboxing video (continuous, no cuts)"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 0.0,
+            "context_risk": 10.0,
+            "interaction_risk": 20.0,
+            "seller_trust_reduction": 3.0,
+            "transaction_risk_total": 55.0,
+            "value_risk": 25.0
+          },
+          "risk_score": 100.0,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 7.5,
+            "complaint_penalty": 50.0,
+            "complaint_rate_percent": 25.0,
+            "fraud_penalty": 0.0,
+            "order_bonus": 7.5,
+            "raw_score": 7.5,
+            "tier": {
+              "label": "New Seller",
+              "level": 0,
+              "note": "Always medium/high risk"
+            }
+          },
+          "seller_trust": 7.5,
+          "seller_trust_level": "Low"
+        },
+        "order_id": "<uuid-4>",
+        "product_id": null,
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    },
+    "high.initiate": {
+      "body": {
+        "lifecycle": {
+          "current_phase": "HELD",
+          "phases": [
+            {
+              "description": "Authorization recorded",
+              "id": "authorized",
+              "label": "AUTHORIZED",
+              "state": "complete"
+            },
+            {
+              "description": "Full hold until verification completes",
+              "id": "held",
+              "label": "HELD",
+              "state": "active"
+            },
+            {
+              "description": "Only after multi-factor verification",
+              "id": "captured",
+              "label": "CAPTURED",
+              "state": "pending"
+            }
+          ],
+          "provider": "Razorpay Simulation",
+          "risk_classification": "HIGH"
+        },
+        "order_id": "<uuid-4>",
+        "payment_id": "<uuid-5>",
+        "status": "HELD",
+        "verification_id": "<uuid-6>"
+      },
+      "status": 200
+    },
+    "high.settle_capture_illegal": {
+      "body": {
+        "detail": "cannot capture a payment that is HELD"
+      },
+      "status": 409
+    },
+    "high.settle_release": {
+      "body": {
+        "order_id": "<uuid-4>",
+        "payment_id": "<uuid-5>",
+        "status": "RELEASED"
+      },
+      "status": 200
+    },
+    "high.verify_inconsistent": {
+      "body": {
+        "order_id": "<uuid-4>",
+        "result": "INCONSISTENT",
+        "verification_id": "<uuid-6>"
+      },
+      "status": 200
+    },
+    "low": {
+      "body": {
+        "amount": 900.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 100.0,
+            "dispute_penalty": 0.0,
+            "dispute_rate_percent": 0.0,
+            "fraud_penalty": 0.0,
+            "order_bonus": 400.0,
+            "raw_score": 440.0,
+            "tier": {
+              "label": "Highly Trusted",
+              "level": 3,
+              "unlocks": [
+                "Instant settlement",
+                "Almost never challenged"
+              ]
+            }
+          },
+          "buyer_trust": 100.0,
+          "buyer_trust_level": "High",
+          "decision": {
+            "delivery_control": "No restrictions — standard delivery",
+            "enforcement_actions": [
+              "Log transaction with risk score",
+              "Attach silent protection window (30–60 min)",
+              "If no issue reported → auto-confirm settlement",
+              "Update trust scores on completion"
+            ],
+            "killer_line": "When trust is high, TrustOS stays invisible.",
+            "money_flow": "Buyer → Gateway → Seller (normal flow). TrustOS only observes.",
+            "payment_action": "Immediate authorization + capture",
+            "risk_classification": "LOW",
+            "risk_range": "0–30",
+            "safety_window": "30–60 minutes post-delivery (silent)",
+            "settlement_mechanism": "Instant settlement to seller",
+            "trustos_role": "Observer only — no active intervention",
+            "verification_type": "Passive (silent window only)"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 40.0,
+            "context_risk": 0.0,
+            "interaction_risk": 0.0,
+            "seller_trust_reduction": 40.0,
+            "transaction_risk_total": 5.0,
+            "value_risk": 5.0
+          },
+          "risk_score": 25.0,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 100.0,
+            "complaint_penalty": 1.98,
+            "complaint_rate_percent": 0.99,
+            "fraud_penalty": 0.0,
+            "order_bonus": 600.0,
+            "raw_score": 648.02,
+            "tier": {
+              "label": "Highly Trusted Seller",
+              "level": 3,
+              "note": "Complaint rate < 3%"
+            }
+          },
+          "seller_trust": 100.0,
+          "seller_trust_level": "High"
+        },
+        "order_id": "<uuid-7>",
+        "product_id": null,
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    },
+    "low.initiate": {
+      "body": {
+        "lifecycle": {
+          "current_phase": "CAPTURED",
+          "phases": [
+            {
+              "description": "Payment authorized at gateway",
+              "id": "authorized",
+              "label": "AUTHORIZED",
+              "state": "complete"
+            },
+            {
+              "description": "Escrow not required — funds route directly",
+              "id": "held",
+              "label": "HELD",
+              "state": "skipped"
+            },
+            {
+              "description": "Settlement to seller (low risk)",
+              "id": "captured",
+              "label": "CAPTURED",
+              "state": "complete"
+            }
+          ],
+          "provider": "Razorpay Simulation",
+          "risk_classification": "LOW"
+        },
+        "order_id": "<uuid-7>",
+        "payment_id": "<uuid-8>",
+        "status": "CAPTURED",
+        "verification_id": "<uuid-9>"
+      },
+      "status": 200
+    },
+    "low.settle_cancel_illegal": {
+      "body": {
+        "detail": "cannot cancel a payment that is CAPTURED"
+      },
+      "status": 409
+    },
+    "low.verify": {
+      "body": {
+        "order_id": "<uuid-7>",
+        "result": "SUCCESS",
+        "verification_id": "<uuid-9>"
+      },
+      "status": 200
+    },
+    "medium": {
+      "body": {
+        "amount": 1500.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 52.46,
+            "dispute_penalty": 11.54,
+            "dispute_rate_percent": 7.69,
+            "fraud_penalty": 0.0,
+            "order_bonus": 24.0,
+            "raw_score": 52.46,
+            "tier": {
+              "label": "Trusted Buyer",
+              "level": 2,
+              "unlocks": [
+                "Direct UPI allowed",
+                "Almost zero friction"
+              ]
+            }
+          },
+          "buyer_trust": 52.46,
+          "buyer_trust_level": "Medium",
+          "decision": {
+            "delivery_control": "Flexible — unattended drop allowed",
+            "enforcement_actions": [
+              "Authorize payment (block funds at gateway)",
+              "Do NOT capture immediately",
+              "Await user delivery confirmation tap",
+              "Start 2–6 hour window after confirmation",
+              "CASE correct: send CAPTURE → seller",
+              "CASE wrong item: block capture, flag seller",
+              "CASE dislike (subjective): capture proceeds, log soft complaint",
+              "CASE timeout: auto-CAPTURE → seller",
+              "Update trust & risk models"
+            ],
+            "killer_line": "We don't control the transaction.. we control the moment of settlement.",
+            "money_flow": "Day 0: Buyer → AUTH → Gateway (money blocked, not with seller).\nAfter delivery + confirmation: IF OK → CAPTURE → Seller | IF Wrong → CANCEL → Buyer | IF Dislike → CAPTURE → Seller.",
+            "payment_action": "Authorization only — capture DELAYED",
+            "risk_classification": "MEDIUM",
+            "risk_range": "31–60",
+            "safety_window": "2–6 hours after user confirms delivery",
+            "settlement_mechanism": "Capture on user confirmation OR timeout (2–6 hrs)",
+            "trustos_role": "Light control — delays settlement, not payment",
+            "verification_type": "User-triggered: tap 'I received my order'"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 20.98,
+            "context_risk": 0.0,
+            "interaction_risk": 0.0,
+            "seller_trust_reduction": 40.0,
+            "transaction_risk_total": 5.0,
+            "value_risk": 5.0
+          },
+          "risk_score": 44.02,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 100.0,
+            "complaint_penalty": 6.9,
+            "complaint_rate_percent": 3.45,
+            "fraud_penalty": 0.0,
+            "order_bonus": 82.5,
+            "raw_score": 125.6,
+            "tier": {
+              "label": "Trusted Seller",
+              "level": 2,
+              "note": "Complaint rate < 8%"
+            }
+          },
+          "seller_trust": 100.0,
+          "seller_trust_level": "High"
+        },
+        "order_id": "<uuid-10>",
+        "product_id": null,
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    },
+    "medium.initiate": {
+      "body": {
+        "lifecycle": {
+          "current_phase": "AUTHORIZED",
+          "phases": [
+            {
+              "description": "Card / UPI authorized; capture delayed",
+              "id": "authorized",
+              "label": "AUTHORIZED",
+              "state": "complete"
+            },
+            {
+              "description": "TrustOS escrow — awaiting delivery & window",
+              "id": "held",
+              "label": "HELD",
+              "state": "active"
+            },
+            {
+              "description": "Released to seller after confirmation / timer",
+              "id": "captured",
+              "label": "CAPTURED",
+              "state": "pending"
+            }
+          ],
+          "provider": "Razorpay Simulation",
+          "risk_classification": "MEDIUM"
+        },
+        "order_id": "<uuid-10>",
+        "payment_id": "<uuid-11>",
+        "status": "AUTHORIZED",
+        "verification_id": "<uuid-12>"
+      },
+      "status": 200
+    },
+    "medium.initiate_again": {
+      "body": {
+        "detail": "order is ACTIVE; a payment was already initiated"
+      },
+      "status": 409
+    },
+    "medium.settle_again": {
+      "body": {
+        "detail": "cannot cancel a payment that is CAPTURED"
+      },
+      "status": 409
+    },
+    "medium.settle_bad_action": {
+      "body": {
+        "detail": "action must be capture | release | cancel"
+      },
+      "status": 400
+    },
+    "medium.settle_before_payment": {
+      "body": {
+        "detail": "no payment has been initiated for this order"
+      },
+      "status": 409
+    },
+    "medium.settle_capture": {
+      "body": {
+        "order_id": "<uuid-10>",
+        "payment_id": "<uuid-11>",
+        "status": "CAPTURED"
+      },
+      "status": 200
+    },
+    "medium.settle_release_illegal": {
+      "body": {
+        "detail": "cannot release a payment that is AUTHORIZED"
+      },
+      "status": 409
+    },
+    "medium.verify": {
+      "body": {
+        "order_id": "<uuid-10>",
+        "result": "SUCCESS",
+        "verification_id": "<uuid-12>"
+      },
+      "status": 200
+    },
+    "medium.verify_before_payment": {
+      "body": {
+        "detail": "order is CREATED; nothing to verify"
+      },
+      "status": 409
+    },
+    "medium.verify_retry_fail": {
+      "body": {
+        "order_id": "<uuid-10>",
+        "result": "FRAUD",
+        "verification_id": "<uuid-13>"
+      },
+      "status": 200
+    },
+    "medium.verify_when_completed": {
+      "body": {
+        "order_id": "<uuid-10>",
+        "result": "INCONSISTENT",
+        "verification_id": "<uuid-14>"
+      },
+      "status": 200
+    },
+    "medium_cancel": {
+      "body": {
+        "amount": 1500.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 52.46,
+            "dispute_penalty": 11.54,
+            "dispute_rate_percent": 7.69,
+            "fraud_penalty": 0.0,
+            "order_bonus": 24.0,
+            "raw_score": 52.46,
+            "tier": {
+              "label": "Trusted Buyer",
+              "level": 2,
+              "unlocks": [
+                "Direct UPI allowed",
+                "Almost zero friction"
+              ]
+            }
+          },
+          "buyer_trust": 52.46,
+          "buyer_trust_level": "Medium",
+          "decision": {
+            "delivery_control": "Flexible — unattended drop allowed",
+            "enforcement_actions": [
+              "Authorize payment (block funds at gateway)",
+              "Do NOT capture immediately",
+              "Await user delivery confirmation tap",
+              "Start 2–6 hour window after confirmation",
+              "CASE correct: send CAPTURE → seller",
+              "CASE wrong item: block capture, flag seller",
+              "CASE dislike (subjective): capture proceeds, log soft complaint",
+              "CASE timeout: auto-CAPTURE → seller",
+              "Update trust & risk models"
+            ],
+            "killer_line": "We don't control the transaction.. we control the moment of settlement.",
+            "money_flow": "Day 0: Buyer → AUTH → Gateway (money blocked, not with seller).\nAfter delivery + confirmation: IF OK → CAPTURE → Seller | IF Wrong → CANCEL → Buyer | IF Dislike → CAPTURE → Seller.",
+            "payment_action": "Authorization only — capture DELAYED",
+            "risk_classification": "MEDIUM",
+            "risk_range": "31–60",
+            "safety_window": "2–6 hours after user confirms delivery",
+            "settlement_mechanism": "Capture on user confirmation OR timeout (2–6 hrs)",
+            "trustos_role": "Light control — delays settlement, not payment",
+            "verification_type": "User-triggered: tap 'I received my order'"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 20.98,
+            "context_risk": 0.0,
+            "interaction_risk": 0.0,
+            "seller_trust_reduction": 40.0,
+            "transaction_risk_total": 5.0,
+            "value_risk": 5.0
+          },
+          "risk_score": 44.02,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 100.0,
+            "complaint_penalty": 6.9,
+            "complaint_rate_percent": 3.45,
+            "fraud_penalty": 0.0,
+            "order_bonus": 82.5,
+            "raw_score": 125.6,
+            "tier": {
+              "label": "Trusted Seller",
+              "level": 2,
+              "note": "Complaint rate < 8%"
+            }
+          },
+          "seller_trust": 100.0,
+          "seller_trust_level": "High"
+        },
+        "order_id": "<uuid-15>",
+        "product_id": null,
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    },
+    "medium_cancel.initiate": {
+      "body": {
+        "lifecycle": {
+          "current_phase": "AUTHORIZED",
+          "phases": [
+            {
+              "description": "Card / UPI authorized; capture delayed",
+              "id": "authorized",
+              "label": "AUTHORIZED",
+              "state": "complete"
+            },
+            {
+              "description": "TrustOS escrow — awaiting delivery & window",
+              "id": "held",
+              "label": "HELD",
+              "state": "active"
+            },
+            {
+              "description": "Released to seller after confirmation / timer",
+              "id": "captured",
+              "label": "CAPTURED",
+              "state": "pending"
+            }
+          ],
+          "provider": "Razorpay Simulation",
+          "risk_classification": "MEDIUM"
+        },
+        "order_id": "<uuid-15>",
+        "payment_id": "<uuid-16>",
+        "status": "AUTHORIZED",
+        "verification_id": "<uuid-17>"
+      },
+      "status": 200
+    },
+    "medium_cancel.settle_cancel": {
+      "body": {
+        "order_id": "<uuid-15>",
+        "payment_id": "<uuid-16>",
+        "status": "CANCELLED"
+      },
+      "status": 200
+    },
+    "medium_cancel.verify": {
+      "body": {
+        "detail": "order is CANCELLED; nothing to verify"
+      },
+      "status": 409
+    },
+    "medium_fraud": {
+      "body": {
+        "amount": 1500.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 52.46,
+            "dispute_penalty": 11.54,
+            "dispute_rate_percent": 7.69,
+            "fraud_penalty": 0.0,
+            "order_bonus": 24.0,
+            "raw_score": 52.46,
+            "tier": {
+              "label": "Trusted Buyer",
+              "level": 2,
+              "unlocks": [
+                "Direct UPI allowed",
+                "Almost zero friction"
+              ]
+            }
+          },
+          "buyer_trust": 52.46,
+          "buyer_trust_level": "Medium",
+          "decision": {
+            "delivery_control": "Flexible — unattended drop allowed",
+            "enforcement_actions": [
+              "Authorize payment (block funds at gateway)",
+              "Do NOT capture immediately",
+              "Await user delivery confirmation tap",
+              "Start 2–6 hour window after confirmation",
+              "CASE correct: send CAPTURE → seller",
+              "CASE wrong item: block capture, flag seller",
+              "CASE dislike (subjective): capture proceeds, log soft complaint",
+              "CASE timeout: auto-CAPTURE → seller",
+              "Update trust & risk models"
+            ],
+            "killer_line": "We don't control the transaction.. we control the moment of settlement.",
+            "money_flow": "Day 0: Buyer → AUTH → Gateway (money blocked, not with seller).\nAfter delivery + confirmation: IF OK → CAPTURE → Seller | IF Wrong → CANCEL → Buyer | IF Dislike → CAPTURE → Seller.",
+            "payment_action": "Authorization only — capture DELAYED",
+            "risk_classification": "MEDIUM",
+            "risk_range": "31–60",
+            "safety_window": "2–6 hours after user confirms delivery",
+            "settlement_mechanism": "Capture on user confirmation OR timeout (2–6 hrs)",
+            "trustos_role": "Light control — delays settlement, not payment",
+            "verification_type": "User-triggered: tap 'I received my order'"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 20.98,
+            "context_risk": 0.0,
+            "interaction_risk": 0.0,
+            "seller_trust_reduction": 40.0,
+            "transaction_risk_total": 5.0,
+            "value_risk": 5.0
+          },
+          "risk_score": 44.02,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 100.0,
+            "complaint_penalty": 6.9,
+            "complaint_rate_percent": 3.45,
+            "fraud_penalty": 0.0,
+            "order_bonus": 82.5,
+            "raw_score": 125.6,
+            "tier": {
+              "label": "Trusted Seller",
+              "level": 2,
+              "note": "Complaint rate < 8%"
+            }
+          },
+          "seller_trust": 100.0,
+          "seller_trust_level": "High"
+        },
+        "order_id": "<uuid-18>",
+        "product_id": null,
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    },
+    "medium_fraud.initiate": {
+      "body": {
+        "lifecycle": {
+          "current_phase": "AUTHORIZED",
+          "phases": [
+            {
+              "description": "Card / UPI authorized; capture delayed",
+              "id": "authorized",
+              "label": "AUTHORIZED",
+              "state": "complete"
+            },
+            {
+              "description": "TrustOS escrow — awaiting delivery & window",
+              "id": "held",
+              "label": "HELD",
+              "state": "active"
+            },
+            {
+              "description": "Released to seller after confirmation / timer",
+              "id": "captured",
+              "label": "CAPTURED",
+              "state": "pending"
+            }
+          ],
+          "provider": "Razorpay Simulation",
+          "risk_classification": "MEDIUM"
+        },
+        "order_id": "<uuid-18>",
+        "payment_id": "<uuid-19>",
+        "status": "AUTHORIZED",
+        "verification_id": "<uuid-20>"
+      },
+      "status": 200
+    },
+    "medium_fraud.settle_capture": {
+      "body": {
+        "order_id": "<uuid-18>",
+        "payment_id": "<uuid-19>",
+        "status": "CAPTURED"
+      },
+      "status": 200
+    },
+    "medium_fraud.verify_fraud": {
+      "body": {
+        "order_id": "<uuid-18>",
+        "result": "FRAUD",
+        "verification_id": "<uuid-20>"
+      },
+      "status": 200
+    },
+    "unknown_product": {
+      "body": {
+        "amount": 900.0,
+        "buyer_id": "buyer-1",
+        "created_at": "<ts>",
+        "currency": "INR",
+        "evaluation": {
+          "buyer_breakdown": {
+            "base": 40.0,
+            "clamped_score": 100.0,
+            "dispute_penalty": 0.0,
+            "dispute_rate_percent": 0.0,
+            "fraud_penalty": 0.0,
+            "order_bonus": 400.0,
+            "raw_score": 440.0,
+            "tier": {
+              "label": "Highly Trusted",
+              "level": 3,
+              "unlocks": [
+                "Instant settlement",
+                "Almost never challenged"
+              ]
+            }
+          },
+          "buyer_trust": 100.0,
+          "buyer_trust_level": "High",
+          "decision": {
+            "delivery_control": "No restrictions — standard delivery",
+            "enforcement_actions": [
+              "Log transaction with risk score",
+              "Attach silent protection window (30–60 min)",
+              "If no issue reported → auto-confirm settlement",
+              "Update trust scores on completion"
+            ],
+            "killer_line": "When trust is high, TrustOS stays invisible.",
+            "money_flow": "Buyer → Gateway → Seller (normal flow). TrustOS only observes.",
+            "payment_action": "Immediate authorization + capture",
+            "risk_classification": "LOW",
+            "risk_range": "0–30",
+            "safety_window": "30–60 minutes post-delivery (silent)",
+            "settlement_mechanism": "Instant settlement to seller",
+            "trustos_role": "Observer only — no active intervention",
+            "verification_type": "Passive (silent window only)"
+          },
+          "risk_components": {
+            "base": 100.0,
+            "buyer_trust_reduction": 40.0,
+            "context_risk": 0.0,
+            "interaction_risk": 0.0,
+            "product_risk": {
+              "applicable": false,
+              "imputed_features": [],
+              "level": null,
+              "product_id": "NOT-IN-CATALOGUE",
+              "reason": "product_id not in catalogue",
+              "score": null,
+              "top_features": []
+            },
+            "seller_trust_reduction": 40.0,
+            "transaction_risk_total": 5.0,
+            "value_risk": 5.0
+          },
+          "risk_score": 25.0,
+          "seller_breakdown": {
+            "base": 50.0,
+            "clamped_score": 100.0,
+            "complaint_penalty": 1.98,
+            "complaint_rate_percent": 0.99,
+            "fraud_penalty": 0.0,
+            "order_bonus": 600.0,
+            "raw_score": 648.02,
+            "tier": {
+              "label": "Highly Trusted Seller",
+              "level": 3,
+              "note": "Complaint rate < 3%"
+            }
+          },
+          "seller_trust": 100.0,
+          "seller_trust_level": "High"
+        },
+        "order_id": "<uuid-21>",
+        "product_id": "NOT-IN-CATALOGUE",
+        "seller_id": "seller-9",
+        "status": "CREATED"
+      },
+      "status": 201
+    }
+  },
+  "order_mode_gate_overrides": {
+    "db.orders": {
+      "entry": [
+        {
+          "amount": "900.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": null,
+          "risk_score": "25.00",
+          "risk_tier": "LOW",
+          "seller_id": "seller-9",
+          "status": "COMPLETED"
+        },
+        {
+          "amount": "1500.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": null,
+          "risk_score": "44.02",
+          "risk_tier": "MEDIUM",
+          "seller_id": "seller-9",
+          "status": "CANCELLED"
+        },
+        {
+          "amount": "1500.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": null,
+          "risk_score": "44.02",
+          "risk_tier": "MEDIUM",
+          "seller_id": "seller-9",
+          "status": "ACTIVE"
+        },
+        {
+          "amount": "1500.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": null,
+          "risk_score": "44.02",
+          "risk_tier": "MEDIUM",
+          "seller_id": "seller-9",
+          "status": "CANCELLED"
+        },
+        {
+          "amount": "12000.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": null,
+          "risk_score": "100.00",
+          "risk_tier": "HIGH",
+          "seller_id": "seller-9",
+          "status": "ACTIVE"
+        },
+        {
+          "amount": "900.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": "B0BYYPTLHX",
+          "risk_score": "25.00",
+          "risk_tier": "MEDIUM",
+          "seller_id": "seller-9",
+          "status": "ACTIVE"
+        },
+        {
+          "amount": "900.00",
+          "buyer_id": "buyer-1",
+          "currency": "INR",
+          "product_id": "NOT-IN-CATALOGUE",
+          "risk_score": "25.00",
+          "risk_tier": "LOW",
+          "seller_id": "seller-9",
+          "status": "CREATED"
+        }
+      ],
+      "reason": "consequence: the 'medium' order ends CANCELLED (was COMPLETED); the FRAUD-verified and INCONSISTENT-verified orders stay ACTIVE (were COMPLETED)."
+    },
+    "db.payments": {
+      "entry": [
+        {
+          "amount": "1500.00",
+          "authorized": true,
+          "provider": "razorpay_simulation",
+          "route": "AUTHORIZE_ONLY",
+          "settled": true,
+          "status": "CANCELLED",
+          "triggered_by": "MANUAL"
+        },
+        {
+          "amount": "1500.00",
+          "authorized": true,
+          "provider": "razorpay_simulation",
+          "route": "AUTHORIZE_ONLY",
+          "settled": false,
+          "status": "AUTHORIZED",
+          "triggered_by": "AUTO"
+        },
+        {
+          "amount": "1500.00",
+          "authorized": true,
+          "provider": "razorpay_simulation",
+          "route": "AUTHORIZE_ONLY",
+          "settled": true,
+          "status": "CANCELLED",
+          "triggered_by": "MANUAL"
+        },
+        {
+          "amount": "12000.00",
+          "authorized": true,
+          "provider": "razorpay_simulation",
+          "route": "WALLET_HOLD",
+          "settled": false,
+          "status": "HELD",
+          "triggered_by": "AUTO"
+        },
+        {
+          "amount": "900.00",
+          "authorized": true,
+          "provider": "razorpay_simulation",
+          "route": "DIRECT_CAPTURE",
+          "settled": true,
+          "status": "CAPTURED",
+          "triggered_by": "AUTO"
+        },
+        {
+          "amount": "900.00",
+          "authorized": true,
+          "provider": "razorpay_simulation",
+          "route": "AUTHORIZE_ONLY",
+          "settled": false,
+          "status": "AUTHORIZED",
+          "triggered_by": "AUTO"
+        }
+      ],
+      "reason": "consequence: the 'medium' payment ends CANCELLED (was CAPTURED); the FRAUD-verified payment stays AUTHORIZED and the INCONSISTENT-verified hold stays HELD (were CAPTURED / RELEASED)."
+    },
+    "db.verifications": {
+      "entry": [
+        {
+          "completed": true,
+          "result": "SUCCESS",
+          "type": "USER_CONFIRMATION"
+        },
+        {
+          "completed": true,
+          "result": "FRAUD",
+          "type": "USER_CONFIRMATION"
+        },
+        {
+          "completed": true,
+          "result": "FRAUD",
+          "type": "USER_CONFIRMATION"
+        },
+        {
+          "completed": false,
+          "result": "PENDING",
+          "type": "USER_CONFIRMATION"
+        },
+        {
+          "completed": true,
+          "result": "INCONSISTENT",
+          "type": "MANDATORY_VIDEO"
+        },
+        {
+          "completed": true,
+          "result": "SUCCESS",
+          "type": "PASSIVE"
+        },
+        {
+          "completed": false,
+          "result": "PENDING",
+          "type": "USER_CONFIRMATION"
+        }
+      ],
+      "reason": "consequence: one row fewer, because the refused medium.verify_when_completed no longer records an INCONSISTENT verification."
+    },
+    "high.settle_release": {
+      "entry": {
+        "body": {
+          "detail": "cannot release: the latest verification is INCONSISTENT; SUCCESS is required"
+        },
+        "status": 409
+      },
+      "reason": "HIGH wallet-hold release now needs a SUCCESS verification; the latest here is INCONSISTENT (was 200 RELEASED)."
+    },
+    "medium.settle_again": {
+      "entry": {
+        "body": {
+          "order_id": "<uuid-1>",
+          "payment_id": "<uuid-2>",
+          "status": "CANCELLED"
+        },
+        "status": 200
+      },
+      "reason": "consequence: the order was not captured, so the follow-up cancel now succeeds (was 409 'cannot cancel a payment that is CAPTURED')."
+    },
+    "medium.settle_capture": {
+      "entry": {
+        "body": {
+          "detail": "cannot capture: the latest verification is FRAUD; SUCCESS is required"
+        },
+        "status": 409
+      },
+      "reason": "the walk records a FRAUD retry on this order before capturing, so the latest verification is FRAUD (was 200 CAPTURED)."
+    },
+    "medium.verify_when_completed": {
+      "entry": {
+        "body": {
+          "detail": "order is CANCELLED; nothing to verify"
+        },
+        "status": 409
+      },
+      "reason": "consequence: the order is CANCELLED, so a further verification is refused (was 200)."
+    },
+    "medium_fraud.settle_capture": {
+      "entry": {
+        "body": {
+          "detail": "cannot capture: the latest verification is FRAUD; SUCCESS is required"
+        },
+        "status": 409
+      },
+      "reason": "capture of an order whose latest verification is FRAUD is refused (was 200 CAPTURED: the bypass)."
+    }
+  }
+}

@@ -191,4 +191,42 @@ sa.Index(
 # Audit range scans / retraining exports on an append-ordered table: BRIN costs almost nothing.
 sa.Index("ix_risk_decision_log_decided_at_brin", risk_decision_log.c.decided_at, postgresql_using="brin")
 
-ALL_TABLES = (orders, payments, verifications, risk_decision_log)
+# ─── Phase 5a: API access + idempotency ──────────────────────────────────────────────────────────
+
+api_keys = sa.Table(
+    "api_keys",
+    metadata,
+    # sha256 hex of the key. Keys are 256-bit random values, so a fast unsalted hash is enough (nothing to
+    # brute-force); the plaintext is shown once at creation (scripts/manage_api_keys.py) and never stored.
+    sa.Column("key_hash", sa.Text, primary_key=True),
+    sa.Column("label", sa.Text, nullable=False),  # who it was issued to; NOT unique, so a key can be rotated under one label
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=_now),
+    sa.Column("revoked_at", sa.DateTime(timezone=True)),
+    sa.CheckConstraint("key_hash ~ '^[0-9a-f]{64}$'", name="ck_api_keys_key_hash_sha256_hex"),
+    sa.CheckConstraint("length(label) > 0", name="ck_api_keys_label_nonempty"),
+)
+
+idempotency_keys = sa.Table(
+    "idempotency_keys",
+    metadata,
+    # scope = the calling api_keys.key_hash: one caller can never replay (or collide with) another's keys.
+    sa.Column("scope", sa.Text, nullable=False),
+    sa.Column("key", sa.Text, nullable=False),
+    # sha256 of method + path + canonical request body: the same key with a different request is refused.
+    sa.Column("request_hash", sa.Text, nullable=False),
+    # Only successful (2xx) responses are stored: an error is retryable and must not be replayed.
+    sa.Column("response_status", sa.Integer, nullable=False),
+    # JSON, not JSONB: JSONB reorders keys, and a replay must be byte-identical to the first response.
+    sa.Column("response_body", pg.JSON, nullable=False),
+    sa.Column("order_id", pg.UUID(as_uuid=True), sa.ForeignKey("orders.order_id", ondelete="RESTRICT")),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=_now),
+    sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint("scope", "key", name="pk_idempotency_keys"),
+    sa.CheckConstraint("length(key) BETWEEN 1 AND 255", name="ck_idempotency_keys_key_length"),
+    sa.CheckConstraint("response_status BETWEEN 200 AND 299", name="ck_idempotency_keys_response_status_2xx"),
+    sa.CheckConstraint("expires_at > created_at", name="ck_idempotency_keys_expires_after_created"),
+)
+# The expired-row purge that runs on every claim (db.purge_expired_idempotency_keys) walks this index.
+sa.Index("ix_idempotency_keys_expires_at", idempotency_keys.c.expires_at)
+
+ALL_TABLES = (orders, payments, verifications, risk_decision_log, api_keys, idempotency_keys)

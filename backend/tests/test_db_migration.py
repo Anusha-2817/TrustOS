@@ -83,6 +83,7 @@ SHIPPED_INDEXES = {
     "ix_verifications_order_id",
     "ix_risk_decision_log_order_id_decided_at",
     "ix_risk_decision_log_decided_at_brin",
+    "ix_idempotency_keys_expires_at",  # Phase 5a: the expired-key purge runs on every idempotent write
 }
 
 

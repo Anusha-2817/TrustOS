@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-TABLES = "orders, payments, verifications, risk_decision_log"
+TABLES = "orders, payments, verifications, risk_decision_log, api_keys, idempotency_keys"
 
 
 def run_alembic(url: str, *args: str) -> subprocess.CompletedProcess:
@@ -103,3 +103,27 @@ async def fetch(sql: str, **params):
 
     async with db.transaction() as conn:
         return [dict(r._mapping) for r in (await conn.execute(sa.text(sql), params)).all()]
+
+
+async def mint_api_key(label: str = "test-caller") -> str:
+    """Issue a real API key in the configured test database (the way scripts/manage_api_keys.py does) and return it."""
+    import db
+    from services.auth import generate_api_key, hash_api_key
+
+    key = generate_api_key()
+    async with db.transaction() as conn:
+        await db.create_api_key(conn, key_hash=hash_api_key(key), label=label)
+    return key
+
+
+@pytest.fixture
+async def key(pg):
+    """A valid API key (plaintext)."""
+    return await mint_api_key()
+
+
+@pytest.fixture
+async def v1(api, key):
+    """The ``api`` client with a valid X-API-Key on every request. (Legacy routes ignore the header.)"""
+    api.headers["X-API-Key"] = key
+    return api

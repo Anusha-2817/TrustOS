@@ -13,6 +13,13 @@ TIER_FIXTURE = {"LOW": "low_risk", "MEDIUM": "medium_risk", "HIGH": "high_risk"}
 ML_HIGH = "B0BYYPTLHX"  # catalogue product whose anomaly score is HIGH (Phase 3 fixture)
 
 
+@pytest.fixture
+async def api(api, key):
+    """Everything here drives the legacy order-mode routes, which since Phase 5a need an X-API-Key."""
+    api.headers["X-API-Key"] = key
+    return api
+
+
 def order_body(tier="MEDIUM", **overrides):
     return {"buyer_id": "buyer-1", "seller_id": "seller-9", **TRANSACTIONS[TIER_FIXTURE[tier]], **overrides}
 
@@ -246,6 +253,8 @@ async def test_verify_guards(api):
 )
 async def test_settle_moves_the_payment_and_the_order(api, tier, action, payment_status, order_status):
     order_id = await started(api, tier)
+    if action != "cancel":  # capture / release pay the seller, so they need a SUCCESS verification (cancel does not)
+        assert (await api.post("/verify", json={"order_id": order_id})).status_code == 200
     r = await api.post("/settle", json={"order_id": order_id, "action": action})
     assert r.status_code == 200 and r.json()["status"] == payment_status and r.json()["order_id"] == order_id
     [p] = await fetch("select * from payments")
@@ -268,9 +277,56 @@ async def test_illegal_settlements_are_409_and_change_nothing(api, tier, action)
 
 async def test_settling_twice_is_a_409(api):
     order_id = await started(api, "MEDIUM")
+    await api.post("/verify", json={"order_id": order_id})
     assert (await api.post("/settle", json={"order_id": order_id, "action": "capture"})).status_code == 200
     assert (await api.post("/settle", json={"order_id": order_id, "action": "cancel"})).status_code == 409
     assert (await fetch("select status from payments"))[0]["status"] == "CAPTURED"
+
+
+# ─── /settle with order_id enforces verification-before-capture/release, exactly like /v1 ────────
+
+
+@pytest.mark.parametrize("tier,action", [("MEDIUM", "capture"), ("HIGH", "release")])
+@pytest.mark.parametrize("latest", [None, "FRAUD", "INCONSISTENT"], ids=["never-verified", "fraud", "inconsistent"])
+async def test_legacy_settle_refuses_to_pay_out_without_a_successful_verification(api, tier, action, latest):
+    order_id = await started(api, tier)
+    if latest:
+        toggles = {"FRAUD": {"passed": False}, "INCONSISTENT": {"inconsistent": True}}[latest]
+        await api.post("/verify", json={"order_id": order_id, **toggles})
+    before = await fetch("select status, triggered_by, settled_at from payments")
+    r = await api.post("/settle", json={"order_id": order_id, "action": action})
+    assert r.status_code == 409
+    assert r.json() == {"detail": f"cannot {action}: the latest verification is {latest or 'PENDING'}; SUCCESS is required"}
+    assert await fetch("select status, triggered_by, settled_at from payments") == before  # nothing moved
+    assert (await fetch("select status from orders")) == [{"status": "ACTIVE"}]
+
+
+@pytest.mark.parametrize("tier", ["MEDIUM", "HIGH"])
+async def test_legacy_settle_cancel_is_never_gated(api, tier):
+    order_id = await started(api, tier)
+    await api.post("/verify", json={"order_id": order_id, "passed": False})  # FRAUD
+    r = await api.post("/settle", json={"order_id": order_id, "action": "cancel"})
+    assert r.status_code == 200 and r.json()["status"] == "CANCELLED"
+
+
+async def test_a_later_verification_lifts_or_reinstates_the_block(api):
+    order_id = await started(api, "MEDIUM")
+    await api.post("/verify", json={"order_id": order_id, "passed": False})
+    assert (await api.post("/settle", json={"order_id": order_id, "action": "capture"})).status_code == 409
+    await api.post("/verify", json={"order_id": order_id})  # a retry that passed
+    assert (await api.post("/settle", json={"order_id": order_id, "action": "capture"})).status_code == 200
+
+
+async def test_the_state_rule_is_still_reported_before_the_verification_rule(api):
+    order_id = await started(api, "MEDIUM")  # AUTHORIZED, verification PENDING
+    r = await api.post("/settle", json={"order_id": order_id, "action": "release"})
+    assert r.status_code == 409 and r.json() == {"detail": "cannot release a payment that is AUTHORIZED"}
+
+
+async def test_the_stateless_settle_is_unaffected(api):
+    """No order_id: still the demo toggle. There is no verification to consult."""
+    assert (await api.post("/settle", json={"action": "capture"})).json() == {"status": "CAPTURED"}
+    assert (await api.post("/settle", json={"action": "release"})).json() == {"status": "RELEASED"}
 
 
 async def test_settle_guards(api):

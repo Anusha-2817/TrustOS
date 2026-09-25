@@ -148,7 +148,8 @@ async def test_rejected_requests_write_nothing(api, method, path, kwargs):
     assert await rows() == []
 
 
-async def test_order_mode_initiate_verify_settle_write_no_extra_log_rows(api):
+async def test_order_mode_initiate_verify_settle_write_no_extra_log_rows(v1):
+    api = v1  # order mode needs an API key
     order = (await api.post("/orders", json={"buyer_id": "b", "seller_id": "s", **TRANSACTIONS["high_risk"]})).json()
     for route, body in (("/initiate-payment", {}), ("/verify", {}), ("/settle", {"action": "release"})):
         assert (await api.post(route, json={"order_id": order["order_id"], **body})).status_code == 200
