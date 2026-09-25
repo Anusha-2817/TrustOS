@@ -31,18 +31,25 @@ class PaymentEngine:
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+LLM_MODEL = "gpt-4o-mini"
+
 
 def _llm_fallback(message: str) -> dict[str, Any]:
     print("LLM ERROR:", message)
+    # ``is_fallback`` is what tells this apart from a genuine answer that happens to say "no signals,
+    # confidence 0.5": the values alone can't. It is for the audit log only; /evaluate-product does not
+    # put it in its response.
     return {
         "signals": [],
         "risk_modifier": 0,
         "confidence": 0.5,
+        "is_fallback": True,
     }
 
 
 def call_llm(data: dict[str, Any]) -> dict[str, Any]:
-    """OpenAI JSON completion; on any failure returns signals=[], confidence=0.5."""
+    """OpenAI JSON completion. On any failure returns signals=[], confidence=0.5 and is_fallback=True;
+    a real answer always carries is_fallback=False."""
     product_name = str(data.get("product_name", "") or "")
     review_summary = str(data.get("review_summary", "") or "")
     try:
@@ -71,7 +78,7 @@ Return STRICT JSON:
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=LLM_MODEL,
             response_format={"type": "json_object"},
             messages=[{"role": "user", "content": user_prompt}],
         )
@@ -115,6 +122,7 @@ Return STRICT JSON:
             "signals": signals,
             "risk_modifier": risk_modifier,
             "confidence": confidence,
+            "is_fallback": False,
         }
     except Exception as e:
         return _llm_fallback(str(e))

@@ -1,17 +1,26 @@
+import asyncio
+import logging
 import os
 import sys
-from typing import Optional
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+from uuid import UUID
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
+from sqlalchemy.exc import SQLAlchemyError
 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 sys.path.insert(0, os.path.dirname(__file__))
 
+import db
+from services import order_flow, risk_log
 from services.trust_engine import TrustEngine
 from services.risk_engine import RiskEngine
 from services.decision_engine import escalate_tier
@@ -25,12 +34,27 @@ from models import (
     EvaluateProductRequest,
     EvaluateProductResponse,
     ProductEvaluateRiskBreakdown,
+    CreateOrderRequest, OrderResponse,
 )
+
+logger = logging.getLogger("trustos.api")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    if db.is_configured():
+        logger.info("persistence: DATABASE_URL set (orders + risk_decision_log enabled)")
+    else:
+        logger.warning("persistence: DATABASE_URL not set — running stateless; /orders answers 503 and nothing is logged")
+    yield
+    await db.dispose()
+
 
 app = FastAPI(
     title="TrustOS API",
     description="Trust enforcement layer for e-commerce: Trust Engine, Risk Engine, Decision Engine",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -91,8 +115,21 @@ def compute_seller_trust(profile: SellerProfile):
     response_model=EvaluateProductResponse,
     tags=["Risk Engine"],
 )
-def evaluate_product(body: EvaluateProductRequest):
-    """Product context: trust scores, risk breakdown, clamped final risk, LOW|MEDIUM|HIGH."""
+async def evaluate_product(body: EvaluateProductRequest):
+    """Product context: trust scores, risk breakdown, clamped final risk, LOW|MEDIUM|HIGH.
+
+    Writes the decision (and the raw LLM output) to risk_decision_log; a database problem never changes the response."""
+    # The scoring does blocking work (the OpenAI call, and the ML fit on the first catalogue product), so it
+    # runs in the threadpool exactly as it did when this route was a plain ``def``.
+    response, llm_output = await run_in_threadpool(_evaluate_product, body)
+    await risk_log.log_decision_fail_open(
+        lambda: risk_log.product_evaluation_record("evaluate_product", body, response, llm_output),
+        source="evaluate_product",
+    )
+    return response
+
+
+def _evaluate_product(body: EvaluateProductRequest) -> tuple[EvaluateProductResponse, Dict[str, Any]]:
     bt, st, base_risk = _product_eval_scores(body)
     value_risk = risk_engine.value_risk_for_amount(body.product_price)
     context_risk = (20.0 if body.is_new_interaction else 0.0) + (
@@ -121,7 +158,7 @@ def evaluate_product(body: EvaluateProductRequest):
     product_risk = assess_product(body.product_id)
     decision = escalate_tier(base_decision, product_risk)
 
-    return EvaluateProductResponse(
+    response = EvaluateProductResponse(
         **body.model_dump(),
         buyer_trust=round(bt, 2),
         seller_trust=round(st, 2),
@@ -140,6 +177,7 @@ def evaluate_product(body: EvaluateProductRequest):
         confidence=confidence,
         behavior_risk=round(behavior_risk, 2),
     )
+    return response, llm_output
 
 
 @app.post("/risk/score", response_model=RiskScoreResponse, tags=["Risk Engine"])
@@ -192,50 +230,117 @@ def evaluate_simulator(body: SimulatorEvaluateRequest):
 
 
 @app.post("/decision/evaluate", response_model=FullEvaluationResponse, tags=["Decision Engine"])
-def evaluate_transaction(request: TransactionRequest):
+async def evaluate_transaction(request: TransactionRequest):
     """
     Full pipeline: Trust → Risk → Decision (+ escalate-only product risk when product_id is set).
     Returns trust scores, risk score, risk classification, and enforcement actions.
+    The decision is written to risk_decision_log; a database problem never changes the response.
     """
-    return run_pipeline(request)
+    full = await run_in_threadpool(run_pipeline, request)
+    await risk_log.log_decision_fail_open(
+        lambda: risk_log.pipeline_record("decision_evaluate", request, full), source="decision_evaluate"
+    )
+    return full
+
+
+# ─── Orders (persisted) ─────────────────────────────────────────────────────
+
+
+@asynccontextmanager
+async def _order_transaction():
+    """One transaction for the order-aware routes. They FAIL CLOSED: an unconfigured or unreachable
+    database is a 503, never a response that pretends something was recorded. (HTTPExceptions raised
+    inside the block — 404, 409 — pass through and roll the transaction back.)"""
+    if not db.is_configured():
+        raise HTTPException(status_code=503, detail="Persistence is not configured (DATABASE_URL is not set)")
+    try:
+        async with db.transaction() as conn:
+            yield conn
+    except (SQLAlchemyError, OSError, asyncio.TimeoutError):
+        logger.exception("order-mode database error")
+        raise HTTPException(status_code=503, detail="Database unavailable; nothing was recorded")
+
+
+@app.post("/orders", response_model=OrderResponse, status_code=201, tags=["Orders"])
+async def create_order(body: CreateOrderRequest):
+    """Create an order and evaluate it. The order, its risk decision (risk_decision_log) and the order's
+    denormalised risk_score / risk_tier are written in ONE transaction: if any part fails there is no order.
+    Follow up with /initiate-payment, /verify and /settle passing the returned order_id."""
+    full = await run_in_threadpool(run_pipeline, body)
+    async with _order_transaction() as conn:
+        order = await db.create_order(
+            conn,
+            buyer_id=body.buyer_id,
+            seller_id=body.seller_id,
+            product_id=body.product_id,
+            amount=db.money(body.order_value),
+            currency="INR",
+            risk_score=db.money(full.risk_score),
+            risk_tier=full.decision.risk_classification,
+        )
+        await db.insert_risk_decision(
+            conn,
+            risk_log.pipeline_record(
+                "orders_create", body, full, order_id=order["order_id"], buyer_id=body.buyer_id, seller_id=body.seller_id
+            ),
+        )
+    return OrderResponse(
+        order_id=order["order_id"],
+        status=order["status"],
+        buyer_id=order["buyer_id"],
+        seller_id=order["seller_id"],
+        product_id=order["product_id"],
+        amount=float(order["amount"]),
+        currency=order["currency"],
+        created_at=order["created_at"],
+        evaluation=full,
+    )
 
 
 # ─── Simulation Endpoint ─────────────────────────────────────────────────────
 
+# The built-in demo transactions, defined ONCE (this table used to be duplicated for /simulate and for the
+# demo-contract routes). Each NAME is the tier its transaction actually scores; tests/test_scenarios.py
+# asserts that on every route that takes a scenario. Before the rename the names were off by one tier:
+# "low_risk" scored 44.02 (MEDIUM) and "medium_risk" scored 98.57 (HIGH).
+SCENARIOS = {
+    # 25.0 -> LOW
+    "low_risk": TransactionRequest(
+        buyer=BuyerProfile(successful_orders=200, total_orders=200, disputes=0, fraud_flags=0),
+        seller=SellerProfile(successful_orders=400, total_orders=404, complaints=4, fraud_flags=0),
+        order_value=900,
+        is_new_pair=False,
+        is_new_device=False,
+    ),
+    # 44.02 -> MEDIUM (the inputs the old "low_risk" had)
+    "medium_risk": TransactionRequest(
+        buyer=BuyerProfile(successful_orders=12, total_orders=13, disputes=1, fraud_flags=0),
+        seller=SellerProfile(successful_orders=55, total_orders=58, complaints=2, fraud_flags=0),
+        order_value=1500,
+        is_new_pair=False,
+        is_new_device=False,
+    ),
+    # 100.0 -> HIGH (unchanged; the old 98.57 "medium_risk" was a second HIGH example and has no name any more)
+    "high_risk": TransactionRequest(
+        buyer=BuyerProfile(successful_orders=1, total_orders=2, disputes=1, fraud_flags=0),
+        seller=SellerProfile(successful_orders=5, total_orders=8, complaints=2, fraud_flags=0),
+        order_value=12000,
+        is_new_pair=True,
+        is_new_device=True,
+    ),
+}
+
+
 @app.get("/simulate/{scenario}", tags=["Demo"])
 def simulate_scenario(scenario: str):
     """
-    Run a pre-built demo scenario.
+    Run a pre-built demo scenario; the name is the tier it scores.
     Options: low_risk | medium_risk | high_risk
     """
-    scenarios = {
-        "low_risk": TransactionRequest(
-            buyer=BuyerProfile(successful_orders=12, total_orders=13, disputes=1, fraud_flags=0),
-            seller=SellerProfile(successful_orders=55, total_orders=58, complaints=2, fraud_flags=0),
-            order_value=1500,
-            is_new_pair=False,
-            is_new_device=False
-        ),
-        "medium_risk": TransactionRequest(
-            buyer=BuyerProfile(successful_orders=5, total_orders=6, disputes=1, fraud_flags=0),
-            seller=SellerProfile(successful_orders=25, total_orders=28, complaints=3, fraud_flags=0),
-            order_value=5000,
-            is_new_pair=True,
-            is_new_device=False
-        ),
-        "high_risk": TransactionRequest(
-            buyer=BuyerProfile(successful_orders=1, total_orders=2, disputes=1, fraud_flags=0),
-            seller=SellerProfile(successful_orders=5, total_orders=8, complaints=2, fraud_flags=0),
-            order_value=12000,
-            is_new_pair=True,
-            is_new_device=True
-        )
-    }
-
-    if scenario not in scenarios:
+    if scenario not in SCENARIOS:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario}' not found. Choose: low_risk, medium_risk, high_risk")
 
-    return run_pipeline(scenarios[scenario])
+    return run_pipeline(SCENARIOS[scenario].model_copy(deep=True))
 
 
 @app.get("/health", tags=["System"])
@@ -246,39 +351,16 @@ def health_check():
 # ─── Demo contract aliases (frontend-friendly) ──────────────────────────────
 # Maps existing Trust/Risk/Decision pipeline to the hackathon UI contract.
 
-SCENARIO_KEYS = frozenset({"low_risk", "medium_risk", "high_risk"})
+SCENARIO_KEYS = frozenset(SCENARIOS)
 
 
 def _transaction_for_scenario(scenario: str) -> TransactionRequest:
-    scenarios = {
-        "low_risk": TransactionRequest(
-            buyer=BuyerProfile(successful_orders=12, total_orders=13, disputes=1, fraud_flags=0),
-            seller=SellerProfile(successful_orders=55, total_orders=58, complaints=2, fraud_flags=0),
-            order_value=1500,
-            is_new_pair=False,
-            is_new_device=False,
-        ),
-        "medium_risk": TransactionRequest(
-            buyer=BuyerProfile(successful_orders=5, total_orders=6, disputes=1, fraud_flags=0),
-            seller=SellerProfile(successful_orders=25, total_orders=28, complaints=3, fraud_flags=0),
-            order_value=5000,
-            is_new_pair=True,
-            is_new_device=False,
-        ),
-        "high_risk": TransactionRequest(
-            buyer=BuyerProfile(successful_orders=1, total_orders=2, disputes=1, fraud_flags=0),
-            seller=SellerProfile(successful_orders=5, total_orders=8, complaints=2, fraud_flags=0),
-            order_value=12000,
-            is_new_pair=True,
-            is_new_device=True,
-        ),
-    }
-    if scenario not in scenarios:
+    if scenario not in SCENARIOS:
         raise HTTPException(
             status_code=404,
             detail="Unknown scenario. Use: low_risk, medium_risk, high_risk",
         )
-    return scenarios[scenario]
+    return SCENARIOS[scenario].model_copy(deep=True)
 
 
 def _buyer_from_simulator(
@@ -317,17 +399,20 @@ def _seller_from_simulator(
 
 class InitiatePaymentBody(BaseModel):
     scenario: Optional[str] = "medium_risk"
+    order_id: Optional[UUID] = None  # with an order the tier comes from its stored decision; scenario is ignored
 
 
 class VerifyBody(BaseModel):
-    """Demo-only: drive outcome for the jury."""
+    """Demo-only: drive outcome for the jury. With order_id the result is recorded on that order."""
     passed: bool = True
     inconsistent: bool = False
+    order_id: Optional[UUID] = None
 
 
 class SettleBody(BaseModel):
-    """Demo-only: which settlement path to show."""
+    """Demo-only: which settlement path to show. With order_id it settles that order's payment."""
     action: str = "capture"  # capture | release | cancel
+    order_id: Optional[UUID] = None
 
 
 @app.get("/evaluate-risk", tags=["Demo Contract"])
@@ -340,8 +425,11 @@ def evaluate_risk_contract(scenario: str = "medium_risk"):
 
 
 def _payment_lifecycle_payload(full: FullEvaluationResponse) -> dict:
+    return _lifecycle_for_band(full.decision.risk_classification)
+
+
+def _lifecycle_for_band(band: str) -> dict:
     """Razorpay-style phase labels for settlement UI (demo)."""
-    band = full.decision.risk_classification
     if band == "LOW":
         phases = [
             {
@@ -425,40 +513,134 @@ def payment_lifecycle_demo(scenario: str = "medium_risk"):
     return _payment_lifecycle_payload(full)
 
 
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _get_order_or_404(order: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if order is None:
+        raise HTTPException(status_code=404, detail="order not found")
+    return order
+
+
 @app.post("/initiate-payment", tags=["Demo Contract"])
-def initiate_payment_contract(body: InitiatePaymentBody = InitiatePaymentBody()):
-    """{ status, lifecycle } — gateway simulation for UI."""
+async def initiate_payment_contract(body: InitiatePaymentBody = InitiatePaymentBody()):
+    """{ status, lifecycle } — gateway simulation for UI.
+
+    Without order_id: the stateless demo (runs the scenario, logs the decision to risk_decision_log with
+    order_id NULL, fail-open). With order_id: starts the payment of that order under the decision recorded
+    when it was created (no re-evaluation, so no new log row) and persists payment + a PENDING verification.
+    Order mode fails closed (503) and adds order_id / payment_id / verification_id to the response."""
+    if body.order_id is not None:
+        return await _initiate_payment_for_order(body.order_id)
     scenario = body.scenario or "medium_risk"
     if scenario not in SCENARIO_KEYS:
         raise HTTPException(status_code=400, detail="scenario must be low_risk | medium_risk | high_risk")
-    full = run_pipeline(_transaction_for_scenario(scenario))
+    req = _transaction_for_scenario(scenario)
+    full = run_pipeline(req)
+    await risk_log.log_decision_fail_open(
+        lambda: risk_log.pipeline_record("initiate_payment", req, full), source="initiate_payment"
+    )
     band = full.decision.risk_classification
-    status_map = {"LOW": "CAPTURED", "MEDIUM": "AUTHORIZED", "HIGH": "HELD"}
     lifecycle = _payment_lifecycle_payload(full)
     return {
-        "status": status_map.get(band, "AUTHORIZED"),
+        "status": order_flow.INITIAL_PAYMENT_STATUS.get(band, "AUTHORIZED"),
         "lifecycle": lifecycle,
     }
 
 
+async def _initiate_payment_for_order(order_id: UUID) -> Dict[str, Any]:
+    async with _order_transaction() as conn:
+        # Row lock: two simultaneous initiations of one order serialise, and the second sees it is no longer CREATED.
+        order = _get_order_or_404(await db.get_order(conn, order_id, for_update=True))
+        if order["status"] != "CREATED":
+            raise HTTPException(status_code=409, detail=f"order is {order['status']}; a payment was already initiated")
+        tier = order["risk_tier"]
+        if tier is None:
+            raise HTTPException(status_code=409, detail="order has no recorded risk decision")
+        status = order_flow.INITIAL_PAYMENT_STATUS[tier]
+        now = _now()
+        payment = await db.create_payment(
+            conn,
+            order_id=order_id,
+            route=order_flow.PAYMENT_ROUTE[tier],
+            status=status,
+            triggered_by="AUTO",  # tier policy, not a request-level action
+            amount=order["amount"],
+            currency=order["currency"],
+            authorized_at=now,
+            settled_at=now if status == "CAPTURED" else None,
+        )
+        verification = await db.create_verification(
+            conn, order_id=order_id, type=order_flow.verification_type_for_tier(tier)
+        )
+        await db.set_order_status(conn, order_id, order_flow.order_status_for_payment(status))
+    return {
+        "status": status,
+        "lifecycle": _lifecycle_for_band(tier),
+        "order_id": order_id,
+        "payment_id": payment["payment_id"],
+        "verification_id": verification["verification_id"],
+    }
+
+
 @app.post("/verify", tags=["Demo Contract"])
-def verify_contract(body: VerifyBody = VerifyBody()):
-    """{ result: SUCCESS | FRAUD | INCONSISTENT } — demo toggles."""
+async def verify_contract(body: VerifyBody = VerifyBody()):
+    """{ result: SUCCESS | FRAUD | INCONSISTENT } — demo toggles.
+
+    With order_id the result is recorded: it completes the order's PENDING verification (or adds a completed
+    one for a retry). Order mode fails closed and adds order_id / verification_id to the response."""
     if body.inconsistent:
-        return {"result": "INCONSISTENT"}
-    if body.passed:
-        return {"result": "SUCCESS"}
-    return {"result": "FRAUD"}
+        result = "INCONSISTENT"
+    elif body.passed:
+        result = "SUCCESS"
+    else:
+        result = "FRAUD"
+    if body.order_id is None:
+        return {"result": result}
+
+    async with _order_transaction() as conn:
+        order = _get_order_or_404(await db.get_order(conn, body.order_id, for_update=True))
+        if order["status"] in ("CREATED", "CANCELLED"):
+            raise HTTPException(status_code=409, detail=f"order is {order['status']}; nothing to verify")
+        pending = await db.get_latest_pending_verification(conn, body.order_id)
+        if pending is not None:
+            verification = await db.complete_verification(conn, pending["verification_id"], result=result)
+        else:
+            verification = await db.create_verification(
+                conn,
+                order_id=body.order_id,
+                type=order_flow.verification_type_for_tier(order["risk_tier"]),
+                result=result,
+                completed_at=_now(),
+            )
+    return {"result": result, "order_id": body.order_id, "verification_id": verification["verification_id"]}
 
 
 @app.post("/settle", tags=["Demo Contract"])
-def settle_contract(body: SettleBody = SettleBody()):
-    """{ status: CAPTURED | RELEASED | CANCELLED } — demo toggles."""
+async def settle_contract(body: SettleBody = SettleBody()):
+    """{ status: CAPTURED | RELEASED | CANCELLED } — demo toggles.
+
+    With order_id it moves that order's payment (AUTHORIZED → CAPTURED / CANCELLED, HELD → RELEASED /
+    CANCELLED; anything else is a 409) and the order's status follows. Order mode fails closed and adds
+    order_id / payment_id to the response."""
     action = (body.action or "capture").lower().strip()
-    m = {"capture": "CAPTURED", "release": "RELEASED", "cancel": "CANCELLED"}
-    if action not in m:
+    if action not in order_flow.SETTLE_ACTION_STATUS:
         raise HTTPException(status_code=400, detail="action must be capture | release | cancel")
-    return {"status": m[action]}
+    target = order_flow.SETTLE_ACTION_STATUS[action]
+    if body.order_id is None:
+        return {"status": target}
+
+    async with _order_transaction() as conn:
+        _get_order_or_404(await db.get_order(conn, body.order_id, for_update=True))
+        payment = await db.get_latest_payment(conn, body.order_id, for_update=True)
+        if payment is None:
+            raise HTTPException(status_code=409, detail="no payment has been initiated for this order")
+        if (payment["status"], target) not in order_flow.ALLOWED_SETTLEMENTS:
+            raise HTTPException(status_code=409, detail=f"cannot {action} a payment that is {payment['status']}")
+        await db.update_payment_status(conn, payment["payment_id"], status=target, triggered_by="MANUAL", settled_at=_now())
+        await db.set_order_status(conn, body.order_id, order_flow.order_status_for_payment(target))
+    return {"status": target, "order_id": body.order_id, "payment_id": payment["payment_id"]}
 
 
 if __name__ == "__main__":

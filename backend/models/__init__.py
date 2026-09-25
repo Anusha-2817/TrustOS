@@ -1,3 +1,6 @@
+from datetime import datetime
+from uuid import UUID
+
 from pydantic import BaseModel, Field, model_serializer, validator
 from typing import Any, ClassVar, Dict, FrozenSet, List, Literal, Optional
 
@@ -275,3 +278,41 @@ class EvaluateProductResponse(EvaluateProductRequest):
         ...,
         description="len(signals)×7 + confidence×10",
     )
+
+# ─── Phase 4: persisted orders ───────────────────────────────────────────────
+
+# orders.amount is NUMERIC(12,2); anything larger would be a database error rather than a 422.
+MAX_ORDER_VALUE = 9_999_999_999.99
+
+
+class CreateOrderRequest(TransactionRequest):
+    """POST /orders — a TransactionRequest plus the opaque buyer/seller ids the order is stored under."""
+
+    buyer_id: str = Field(..., min_length=1, max_length=200, description="Opaque buyer identifier (not validated against anything)")
+    seller_id: str = Field(..., min_length=1, max_length=200, description="Opaque seller identifier (not validated against anything)")
+    order_value: float = Field(..., gt=0, le=MAX_ORDER_VALUE, description="Order value in INR (stored as NUMERIC(12,2))")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "buyer_id": "buyer-1042",
+                "seller_id": "seller-77",
+                "buyer": {"successful_orders": 12, "total_orders": 13, "disputes": 1, "fraud_flags": 0},
+                "seller": {"successful_orders": 55, "total_orders": 58, "complaints": 2, "fraud_flags": 0},
+                "order_value": 1500,
+                "is_new_pair": False,
+                "is_new_device": False,
+            }
+        }
+
+
+class OrderResponse(BaseModel):
+    order_id: UUID
+    status: Literal["CREATED", "ACTIVE", "COMPLETED", "CANCELLED"]
+    buyer_id: str
+    seller_id: str
+    product_id: Optional[str] = None
+    amount: float
+    currency: str
+    created_at: datetime
+    evaluation: FullEvaluationResponse = Field(..., description="The decision the order was created under (also stored in risk_decision_log)")

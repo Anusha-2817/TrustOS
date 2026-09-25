@@ -8,6 +8,9 @@ from pathlib import Path
 # the import works without a real one and nothing in the test run can reach the real API; the only
 # LLM call on a tested route (call_llm in /evaluate-product) is replaced by ``fake_llm`` below.
 os.environ["OPENAI_API_KEY"] = "sk-test-not-a-real-key"
+# The default suite is hermetic: persistence stays OFF, so it can never touch a developer's real database.
+# Tests that need Postgres get their own scratch one (tests/test_db_*.py, see conftest_db.py).
+os.environ.pop("DATABASE_URL", None)
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
@@ -15,8 +18,11 @@ sys.path.insert(0, str(BACKEND_DIR))
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from pg_fixtures import api, pg, pg_url  # noqa: E402,F401  (fixtures for the database tests)
+
 # Deterministic stand-in for the OpenAI call, keyed by product_name so the demo payloads exercise
 # 0-3 signals and a spread of confidences. Unknown names get the real function's error fallback.
+# Like the real call_llm, every output says whether it is the error fallback (``is_fallback``).
 _LLM_OUTPUTS = {
     "Ergonomic desk lamp": {"signals": [], "risk_modifier": -5, "confidence": 0.8},
     "Wireless mechanical keyboard": {"signals": ["packaging complaints"], "risk_modifier": 5, "confidence": 0.6},
@@ -28,12 +34,18 @@ _LLM_OUTPUTS = {
     "Phone case bundle": {"signals": ["new listing", "no verified reviews"], "risk_modifier": 10, "confidence": 0.7},
     "Professional workstation laptop": {"signals": [], "risk_modifier": -10, "confidence": 0.95},
     "Cotton tote bag": {"signals": [], "risk_modifier": 0, "confidence": 0.2},
+    # A GENUINE answer whose values equal the error fallback's (no signals, modifier 0, confidence 0.5):
+    # the audit log must not confuse the two.
+    "Genuinely neutral item": {"signals": [], "risk_modifier": 0, "confidence": 0.5},
 }
-_LLM_FALLBACK = {"signals": [], "risk_modifier": 0, "confidence": 0.5}
+_LLM_FALLBACK = {"signals": [], "risk_modifier": 0, "confidence": 0.5, "is_fallback": True}
 
 
 def fake_llm(data):
-    return dict(_LLM_OUTPUTS.get(data.get("product_name"), _LLM_FALLBACK))
+    out = _LLM_OUTPUTS.get(data.get("product_name"))
+    if out is None:
+        return dict(_LLM_FALLBACK)
+    return {**out, "is_fallback": False}
 
 
 @pytest.fixture
